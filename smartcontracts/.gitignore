@@ -1,0 +1,6 @@
+# Rust's output directory to ignore
+target
+
+# Local Soroban settings
+.soroban
+test_snapshots/
