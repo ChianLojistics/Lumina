@@ -1,17 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payment, PaymentStatus } from './entities/payment.entity';
+import { Payment, PaymentCurrency, PaymentStatus } from './entities/payment.entity';
 import { Merchant } from './entities/merchant.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { ConversionEngineService } from '../conversion-engine/conversion-engine.service';
+import { ConversionAsset } from '../conversion-engine/asset.enum';
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
     @InjectRepository(Merchant)
     private merchantRepository: Repository<Merchant>,
+    private conversionEngineService: ConversionEngineService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
@@ -30,7 +35,23 @@ export class PaymentService {
       expires_at: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
     });
 
-    return this.paymentRepository.save(payment);
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.currency !== PaymentCurrency.USDC) {
+      this.conversionEngineService
+        .executeConversion(
+          savedPayment.payment_id,
+          savedPayment.currency as unknown as ConversionAsset,
+          ConversionAsset.USDC,
+        )
+        .catch((error) =>
+          this.logger.error(
+            `Conversion failed for payment ${savedPayment.payment_id}: ${error.message}`,
+          ),
+        );
+    }
+
+    return savedPayment;
   }
 
   async findAll(merchantAddress?: string): Promise<Payment[]> {

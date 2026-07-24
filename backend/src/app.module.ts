@@ -6,6 +6,7 @@ import { PaymentModule } from './payment/payment.module';
 import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { BlockchainListenerModule } from './blockchain-listener/blockchain-listener.module';
 import { NotificationServiceModule } from './notification-service/notification-service.module';
+import { ConversionEngineModule } from './conversion-engine/conversion-engine.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { NotificationServiceModule } from './notification-service/notification-s
     ApiGatewayModule,
     BlockchainListenerModule,
     NotificationServiceModule,
+    ConversionEngineModule,
   ],
 })
 export class AppModule {}
