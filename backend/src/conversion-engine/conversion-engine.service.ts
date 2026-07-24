@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -6,6 +6,7 @@ import { PriceOracleService } from './price-oracle.service';
 import { ConversionAsset } from './asset.enum';
 import { Conversion, ConversionStatus } from './entities/conversion.entity';
 import { Payment } from '../payment/entities/payment.entity';
+import { PaymentException } from '../common/exceptions';
 
 const RETRY_BASE_DELAY_MS = 60 * 1000;
 const RETRY_MAX_DELAY_MS = 60 * 60 * 1000;
@@ -96,7 +97,7 @@ export class ConversionEngineService {
     const payment = await this.paymentRepository.findOne({ where: { payment_id: paymentId } });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw PaymentException.notFound(paymentId);
     }
 
     const conversion = await this.conversionRepository.save(

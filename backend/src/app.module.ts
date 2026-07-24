@@ -7,12 +7,14 @@ import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { BlockchainListenerModule } from './blockchain-listener/blockchain-listener.module';
 import { NotificationServiceModule } from './notification-service/notification-service.module';
 import { ConversionEngineModule } from './conversion-engine/conversion-engine.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    CommonModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
