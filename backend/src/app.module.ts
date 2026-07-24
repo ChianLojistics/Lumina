@@ -8,6 +8,7 @@ import { BlockchainListenerModule } from './blockchain-listener/blockchain-liste
 import { NotificationServiceModule } from './notification-service/notification-service.module';
 import { ConversionEngineModule } from './conversion-engine/conversion-engine.module';
 import { CommonModule } from './common/common.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CommonModule } from './common/common.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
+    AuthModule,
     PaymentModule,
     ApiGatewayModule,
     BlockchainListenerModule,
