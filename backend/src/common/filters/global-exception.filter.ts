@@ -116,6 +116,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         return ErrorCode.VALIDATION_FAILED;
       case HttpStatus.UNAUTHORIZED:
         return ErrorCode.UNAUTHENTICATED;
+      case HttpStatus.FORBIDDEN:
+        return ErrorCode.FORBIDDEN;
       case HttpStatus.NOT_FOUND:
         return ErrorCode.NOT_FOUND;
       case HttpStatus.TOO_MANY_REQUESTS:
