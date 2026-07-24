@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { PaymentException } from '../common/exceptions';
 import { PaymentService } from './payment.service';
 import { Payment, PaymentCurrency } from './entities/payment.entity';
 import { Merchant } from './entities/merchant.entity';
@@ -36,7 +36,7 @@ describe('PaymentService', () => {
     service = module.get<PaymentService>(PaymentService);
   });
 
-  it('throws NotFoundException when the merchant does not exist', async () => {
+  it('throws PaymentException when the merchant does not exist', async () => {
     merchantRepository.findOne.mockResolvedValue(null);
 
     await expect(
@@ -45,7 +45,7 @@ describe('PaymentService', () => {
         amount: 1,
         currency: PaymentCurrency.BTC,
       }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(PaymentException);
   });
 
   it('triggers a conversion for a non-USDC payment', async () => {

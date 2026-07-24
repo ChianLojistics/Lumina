@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { PaymentException } from '../common/exceptions';
 import { ConversionEngineService } from './conversion-engine.service';
 import { PriceOracleService } from './price-oracle.service';
 import { ConversionAsset } from './asset.enum';
@@ -84,12 +84,12 @@ describe('ConversionEngineService', () => {
   });
 
   describe('executeConversion', () => {
-    it('throws NotFoundException when the payment does not exist', async () => {
+    it('throws PaymentException when the payment does not exist', async () => {
       paymentRepository.findOne.mockResolvedValue(null);
 
       await expect(
         service.executeConversion('missing', ConversionAsset.BTC, ConversionAsset.USDC),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(PaymentException);
     });
 
     it('marks the conversion completed and updates the payment on success', async () => {

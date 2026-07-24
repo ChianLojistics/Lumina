@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment, PaymentCurrency, PaymentStatus } from './entities/payment.entity';
@@ -6,6 +6,7 @@ import { Merchant } from './entities/merchant.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ConversionEngineService } from '../conversion-engine/conversion-engine.service';
 import { ConversionAsset } from '../conversion-engine/asset.enum';
+import { PaymentException } from '../common/exceptions';
 
 @Injectable()
 export class PaymentService {
@@ -25,7 +26,7 @@ export class PaymentService {
     });
 
     if (!merchant) {
-      throw new NotFoundException('Merchant not found');
+      throw PaymentException.merchantNotFound(createPaymentDto.merchant_address);
     }
 
     const payment = this.paymentRepository.create({
@@ -70,7 +71,7 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw PaymentException.notFound(paymentId);
     }
 
     return payment;
