@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentModule } from './payment/payment.module';
 import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { BlockchainListenerModule } from './blockchain-listener/blockchain-listener.module';
+import { NotificationServiceModule } from './notification-service/notification-service.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { BlockchainListenerModule } from './blockchain-listener/blockchain-liste
     PaymentModule,
     ApiGatewayModule,
     BlockchainListenerModule,
+    NotificationServiceModule,
   ],
 })
 export class AppModule {}
