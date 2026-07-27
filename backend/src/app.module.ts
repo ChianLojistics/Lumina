@@ -9,6 +9,7 @@ import { NotificationServiceModule } from './notification-service/notification-s
 import { ConversionEngineModule } from './conversion-engine/conversion-engine.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
+import { RampModule } from './ramp-service/ramp-service.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AuthModule } from './auth/auth.module';
       synchronize: true,
     }),
     AuthModule,
+    RampModule,
     PaymentModule,
     ApiGatewayModule,
     BlockchainListenerModule,
