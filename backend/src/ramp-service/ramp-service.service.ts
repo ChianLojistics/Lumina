@@ -9,6 +9,7 @@ import { InitiateOffRampDto } from './dto/initiate-offramp.dto';
 import { WebhookDto } from './dto/webhook.dto';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { InitiateKycDto } from './dto/initiate-kyc.dto';
+import { MetricsService } from '../common/metrics/metrics.service';
 
 @Injectable()
 export class RampService {
@@ -60,6 +61,7 @@ export class RampService {
     private bankAccountRepository: Repository<BankAccount>,
     @InjectRepository(KycRecord)
     private kycRecordRepository: Repository<KycRecord>,
+    private metricsService: MetricsService,
   ) {}
 
   async initiateOnRamp(dto: InitiateOnRampDto): Promise<RampOperation> {
@@ -169,6 +171,12 @@ export class RampService {
 
     if (operation.status === RampOperationStatus.COMPLETED || operation.status === RampOperationStatus.FAILED || operation.status === RampOperationStatus.CANCELLED) {
       operation.completed_at = new Date();
+      this.metricsService.recordRampOperation(
+        'on_ramp',
+        operation.fiat_currency,
+        operation.status,
+        operation.fiat_amount,
+      );
     }
 
     return this.rampOperationRepository.save(operation);
@@ -259,17 +267,19 @@ export class RampService {
 
     // Initiate bank transfer via Stripe
     const stripe = require('stripe')(this.providers.stripe.apiKey);
-    
+
     try {
-      const transfer = await stripe.transfers.create({
-        amount: Math.round(operation.fiat_amount * 100), // Convert to cents
-        currency: operation.fiat_currency.toLowerCase(),
-        destination: bankAccount.stripe_bank_account_id,
-        metadata: {
-          operation_id: operation.operation_id,
-          user_id: operation.user_id,
-        },
-      });
+      const transfer = await this.metricsService.trackExternalCall('stripe', 'transfers_create', () =>
+        stripe.transfers.create({
+          amount: Math.round(operation.fiat_amount * 100), // Convert to cents
+          currency: operation.fiat_currency.toLowerCase(),
+          destination: bankAccount.stripe_bank_account_id,
+          metadata: {
+            operation_id: operation.operation_id,
+            user_id: operation.user_id,
+          },
+        }),
+      );
 
       operation.provider = Provider.STRIPE;
       operation.provider_transaction_id = transfer.id;
@@ -283,10 +293,22 @@ export class RampService {
       await this.bankAccountRepository.save(bankAccount);
 
       await this.rampOperationRepository.save(operation);
+      this.metricsService.recordRampOperation(
+        'off_ramp',
+        operation.fiat_currency,
+        'completed',
+        operation.fiat_amount,
+      );
     } catch (error) {
       operation.status = RampOperationStatus.FAILED;
       operation.failure_reason = error.message;
       await this.rampOperationRepository.save(operation);
+      this.metricsService.recordRampOperation(
+        'off_ramp',
+        operation.fiat_currency,
+        'failed',
+        operation.fiat_amount,
+      );
       throw error;
     }
   }
@@ -310,19 +332,21 @@ export class RampService {
     const stripe = require('stripe')(this.providers.stripe.apiKey);
 
     try {
-      const bankAccount = await stripe.accounts.createExternalAccount(
-        process.env.STRIPE_CONNECT_ACCOUNT_ID,
-        {
-          external_account: {
-            object: 'bank_account',
-            country: dto.country,
-            currency: dto.currency,
-            routing_number: dto.routing_number,
-            account_number: dto.account_number,
-            account_holder_name: dto.account_holder_name,
-            account_holder_type: dto.account_type,
-          },
-        },
+      const bankAccount = await this.metricsService.trackExternalCall(
+        'stripe',
+        'accounts_create_external_account',
+        () =>
+          stripe.accounts.createExternalAccount(process.env.STRIPE_CONNECT_ACCOUNT_ID, {
+            external_account: {
+              object: 'bank_account',
+              country: dto.country,
+              currency: dto.currency,
+              routing_number: dto.routing_number,
+              account_number: dto.account_number,
+              account_holder_name: dto.account_holder_name,
+              account_holder_type: dto.account_type,
+            },
+          }),
       );
 
       const newBankAccount = this.bankAccountRepository.create({
@@ -428,16 +452,21 @@ export class RampService {
   private async initiateStripePayment(operation: RampOperation, dto: InitiateOnRampDto): Promise<any> {
     const stripe = require('stripe')(this.providers.stripe.apiKey);
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(operation.fiat_amount * 100),
-      currency: operation.fiat_currency.toLowerCase(),
-      metadata: {
-        operation_id: operation.operation_id,
-        user_id: operation.user_id,
-        crypto_asset: operation.crypto_asset,
-        wallet_address: operation.wallet_address,
-      },
-    });
+    const paymentIntent = await this.metricsService.trackExternalCall(
+      'stripe',
+      'payment_intents_create',
+      () =>
+        stripe.paymentIntents.create({
+          amount: Math.round(operation.fiat_amount * 100),
+          currency: operation.fiat_currency.toLowerCase(),
+          metadata: {
+            operation_id: operation.operation_id,
+            user_id: operation.user_id,
+            crypto_asset: operation.crypto_asset,
+            wallet_address: operation.wallet_address,
+          },
+        }),
+    );
 
     return {
       transaction_id: paymentIntent.id,
@@ -476,13 +505,18 @@ export class RampService {
   private async initiateStripeKyc(kycRecord: KycRecord, dto: InitiateKycDto): Promise<any> {
     const stripe = require('stripe')(this.providers.stripe.apiKey);
 
-    const verificationSession = await stripe.identity.verificationSessions.create({
-      type: 'individual',
-      metadata: {
-        kyc_id: kycRecord.kyc_id,
-        user_id: kycRecord.user_id,
-      },
-    });
+    const verificationSession = await this.metricsService.trackExternalCall(
+      'stripe',
+      'identity_verification_sessions_create',
+      () =>
+        stripe.identity.verificationSessions.create({
+          type: 'individual',
+          metadata: {
+            kyc_id: kycRecord.kyc_id,
+            user_id: kycRecord.user_id,
+          },
+        }),
+    );
 
     return {
       reference_id: verificationSession.id,

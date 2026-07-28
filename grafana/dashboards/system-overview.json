@@ -1,0 +1,100 @@
+{
+  "uid": "lumina-system-overview",
+  "title": "System Overview",
+  "tags": ["lumina", "infrastructure"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"lumina-backend\"}[5m]) * 100",
+          "legendFormat": "backend process",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Memory Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+          "legendFormat": "{{instance}} used",
+          "refId": "A"
+        },
+        {
+          "expr": "process_resident_memory_bytes{job=\"lumina-backend\"}",
+          "legendFormat": "backend RSS",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Disk Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "100 - ((node_filesystem_avail_bytes{fstype!=\"tmpfs\"} * 100) / node_filesystem_size_bytes{fstype!=\"tmpfs\"})",
+          "legendFormat": "{{instance}} {{mountpoint}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Service Up",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "up", "legendFormat": "{{job}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Process Uptime",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "time() - process_start_time_seconds{job=\"lumina-backend\"}",
+          "legendFormat": "backend uptime",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

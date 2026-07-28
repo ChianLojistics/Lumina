@@ -9,6 +9,7 @@ import { PaymentService } from '../payment/payment.service';
 import { NotificationServiceService } from '../notification-service/notification-service.service';
 import { NotificationEvent } from '../notification-service/events/notification-event.enum';
 import { BlockchainException } from '../common/exceptions';
+import { MetricsService } from '../common/metrics/metrics.service';
 import { CircuitBreaker } from './circuit-breaker';
 import { retryWithBackoff } from './retry.util';
 
@@ -35,6 +36,7 @@ export class BlockchainListenerService implements OnModuleInit {
     private merchantRepository: Repository<Merchant>,
     private paymentService: PaymentService,
     private notificationService: NotificationServiceService,
+    private metricsService: MetricsService,
   ) {
     this.stellarRpcUrl = process.env.STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
     this.stellarNetworkPassphrase =
@@ -55,10 +57,12 @@ export class BlockchainListenerService implements OnModuleInit {
     this.logger.log(`Connecting to Stellar RPC at ${this.stellarRpcUrl}`);
 
     try {
-      const network = await retryWithBackoff(() => this.server.getNetwork(), {
-        maxAttempts: this.maxRetryAttempts,
-        timeoutMs: this.queryTimeoutMs,
-      });
+      const network = await this.metricsService.trackExternalCall('stellar_rpc', 'get_network', () =>
+        retryWithBackoff(() => this.server.getNetwork(), {
+          maxAttempts: this.maxRetryAttempts,
+          timeoutMs: this.queryTimeoutMs,
+        }),
+      );
 
       if (network.passphrase !== this.stellarNetworkPassphrase) {
         this.logger.warn(
@@ -234,10 +238,15 @@ export class BlockchainListenerService implements OnModuleInit {
     }
 
     try {
-      const response = await retryWithBackoff(() => this.server.getTransaction(transactionHash), {
-        maxAttempts: this.maxRetryAttempts,
-        timeoutMs: this.queryTimeoutMs,
-      });
+      const response = await this.metricsService.trackExternalCall(
+        'stellar_rpc',
+        'get_transaction',
+        () =>
+          retryWithBackoff(() => this.server.getTransaction(transactionHash), {
+            maxAttempts: this.maxRetryAttempts,
+            timeoutMs: this.queryTimeoutMs,
+          }),
+      );
 
       this.circuitBreaker.onSuccess();
       return this.mapTransactionResponse(response);

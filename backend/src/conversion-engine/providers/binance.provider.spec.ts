@@ -1,11 +1,18 @@
 import { BinanceProvider } from './binance.provider';
 import { ConversionAsset } from '../asset.enum';
+import { MetricsService } from '../../common/metrics/metrics.service';
+
+function createMetricsServiceStub(): MetricsService {
+  return {
+    trackExternalCall: (_service: string, _operation: string, fn: () => Promise<unknown>) => fn(),
+  } as unknown as MetricsService;
+}
 
 describe('BinanceProvider', () => {
   let provider: BinanceProvider;
 
   beforeEach(() => {
-    provider = new BinanceProvider();
+    provider = new BinanceProvider(createMetricsServiceStub());
   });
 
   afterEach(() => {

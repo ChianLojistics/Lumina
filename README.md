@@ -14,6 +14,7 @@ Lumina is an open-source, global crypto payment infrastructure that lets busines
 - [Getting Started](#getting-started)
 - [Smart Contracts (Soroban)](#smart-contracts-soroban)
 - [Backend Services](#backend-services)
+- [Monitoring & Observability](#monitoring--observability)
 - [Frontend](#frontend)
 - [Environment Variables](#environment-variables)
 - [Running Tests](#running-tests)
@@ -250,6 +251,33 @@ POST   /api/ramp/offramp        → initiate off-ramp
 POST   /api/webhooks/register   → register webhook URL
 GET    /api/merchants/balance   → get merchant balance
 ```
+
+---
+
+## Monitoring & Observability
+
+The backend exposes Prometheus metrics at `GET /metrics` (HTTP request
+rate/latency/errors, database query duration, external service call latency,
+queue depth/throughput, and business metrics like payment volume and success
+rate — see [`backend/src/common/metrics`](backend/src/common/metrics)).
+
+| Directory | Purpose |
+|---|---|
+| [`prometheus/`](prometheus/) | Scrape config, retention, alerting rules |
+| [`grafana/`](grafana/) | Auto-provisioned dashboards (system, API, database, queues, business) |
+| [`alertmanager/`](alertmanager/) | Alert routing to Slack/email/PagerDuty, grouping, on-call escalation |
+
+Start the whole stack, including monitoring, with `docker-compose up`, then
+open:
+
+| Tool | URL |
+|---|---|
+| Prometheus | http://localhost:9090 |
+| Alertmanager | http://localhost:9093 |
+| Grafana | http://localhost:3001 |
+
+Before deploying anywhere shared, populate the alert notification secrets in
+`alertmanager/secrets/` (see [`alertmanager/README.md`](alertmanager/README.md)).
 
 ---
 

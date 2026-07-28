@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: lumina
+    environment: ${ENVIRONMENT:-development}
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+  # Lumina NestJS backend: HTTP, DB, external service, queue and business metrics
+  # exposed at /metrics via prom-client (see backend/src/common/metrics).
+  - job_name: lumina-backend
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['backend:4000']
+        labels:
+          service: lumina-backend
+
+  # Prometheus's own health/performance.
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: prometheus
+
+  # Alertmanager health.
+  - job_name: alertmanager
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          service: alertmanager
+
+  # Host-level system metrics (CPU, memory, disk) for the "System Overview" dashboard.
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: node-exporter
+
+  # Postgres metrics (connections, transactions, replication) for the
+  # "Database Performance" dashboard.
+  - job_name: postgres-exporter
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: postgres

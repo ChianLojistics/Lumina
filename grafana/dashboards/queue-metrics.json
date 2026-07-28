@@ -1,0 +1,68 @@
+{
+  "uid": "lumina-queue-metrics",
+  "title": "Queue Metrics",
+  "tags": ["lumina", "queues"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Queue Depth",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "queue_depth", "legendFormat": "{{queue}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Job Processing Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(queue_jobs_total[5m])) by (queue, status)",
+          "legendFormat": "{{queue}} {{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Job Processing Time (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(queue_job_processing_duration_seconds_bucket[5m])) by (le, queue))",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Job Failure Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(queue_jobs_total{status=\"error\"}[5m])) by (queue) / sum(rate(queue_jobs_total[5m])) by (queue)",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

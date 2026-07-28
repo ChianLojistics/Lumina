@@ -10,6 +10,10 @@ import { ConversionEngineModule } from './conversion-engine/conversion-engine.mo
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { RampModule } from './ramp-service/ramp-service.module';
+import { MetricsModule } from './common/metrics/metrics.module';
+import { MetricsService } from './common/metrics/metrics.service';
+import { TypeOrmMetricsLogger } from './common/metrics/typeorm-metrics.logger';
+import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
 
 @Module({
   imports: [
@@ -18,15 +22,24 @@ import { RampModule } from './ramp-service/ramp-service.module';
     }),
     CommonModule,
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT) || 5432,
-      username: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'postgres',
-      database: process.env.DATABASE_NAME || 'lumina',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true,
+    TypeOrmModule.forRootAsync({
+      imports: [MetricsModule],
+      inject: [MetricsService],
+      useFactory: (metricsService: MetricsService) => ({
+        type: 'postgres',
+        host: process.env.DATABASE_HOST || 'localhost',
+        port: parseInt(process.env.DATABASE_PORT) || 5432,
+        username: process.env.DATABASE_USER || 'postgres',
+        password: process.env.DATABASE_PASSWORD || 'postgres',
+        database: process.env.DATABASE_NAME || 'lumina',
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: true,
+        logging: true,
+        // Low threshold so logQuerySlow (the only logger hook that receives
+        // execution time) fires for effectively every query, feeding db_query_duration_seconds.
+        maxQueryExecutionTime: 1,
+        logger: new TypeOrmMetricsLogger(metricsService),
+      }),
     }),
     AuthModule,
     RampModule,
@@ -36,5 +49,6 @@ import { RampModule } from './ramp-service/ramp-service.module';
     NotificationServiceModule,
     ConversionEngineModule,
   ],
+  providers: [DbPoolMetricsService],
 })
 export class AppModule {}

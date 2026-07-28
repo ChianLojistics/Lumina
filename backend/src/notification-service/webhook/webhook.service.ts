@@ -7,11 +7,13 @@ import { Webhook } from '../entities/webhook.entity';
 import { WebhookDelivery, WebhookDeliveryStatus } from '../entities/webhook-delivery.entity';
 import { RegisterWebhookDto } from './dto/register-webhook.dto';
 import { NotificationEvent } from '../events/notification-event.enum';
+import { MetricsService } from '../../common/metrics/metrics.service';
 
 const RETRY_BASE_DELAY_MS = 60 * 1000;
 const RETRY_MAX_DELAY_MS = 60 * 60 * 1000;
 export const SIGNATURE_HEADER = 'x-lumina-signature';
 export const TIMESTAMP_HEADER = 'x-lumina-timestamp';
+const WEBHOOK_DELIVERY_QUEUE = 'webhook_delivery';
 
 @Injectable()
 export class WebhookService {
@@ -22,6 +24,7 @@ export class WebhookService {
     private webhookRepository: Repository<Webhook>,
     @InjectRepository(WebhookDelivery)
     private deliveryRepository: Repository<WebhookDelivery>,
+    private metricsService: MetricsService,
   ) {}
 
   async registerWebhook(dto: RegisterWebhookDto): Promise<Webhook> {
@@ -91,6 +94,8 @@ export class WebhookService {
       },
     });
 
+    this.metricsService.setQueueDepth(WEBHOOK_DELIVERY_QUEUE, pending.length);
+
     for (const delivery of pending) {
       const webhook = await this.webhookRepository.findOne({
         where: { id: delivery.webhook_id },
@@ -108,20 +113,26 @@ export class WebhookService {
     const timestamp = Date.now().toString();
     const body = JSON.stringify({ event: delivery.event, data: delivery.payload });
     const signature = this.sign(body, timestamp, webhook.secret);
+    const start = Date.now();
 
     delivery.attempts += 1;
     delivery.last_attempted_at = new Date();
 
     try {
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [SIGNATURE_HEADER]: signature,
-          [TIMESTAMP_HEADER]: timestamp,
-        },
-        body,
-      });
+      const response = await this.metricsService.trackExternalCall(
+        'webhook_delivery',
+        'deliver',
+        () =>
+          fetch(webhook.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              [SIGNATURE_HEADER]: signature,
+              [TIMESTAMP_HEADER]: timestamp,
+            },
+            body,
+          }),
+      );
 
       delivery.response_status = response.status;
       delivery.response_body = (await response.text()).slice(0, 1000);
@@ -135,6 +146,12 @@ export class WebhookService {
     } catch (error: any) {
       this.scheduleRetry(delivery, error.message);
     }
+
+    this.metricsService.recordQueueJob(
+      WEBHOOK_DELIVERY_QUEUE,
+      delivery.status === WebhookDeliveryStatus.SUCCESS ? 'success' : 'error',
+      (Date.now() - start) / 1000,
+    );
 
     await this.deliveryRepository.save(delivery);
   }

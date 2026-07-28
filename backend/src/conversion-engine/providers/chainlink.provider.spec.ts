@@ -1,5 +1,12 @@
 import { ChainlinkProvider } from './chainlink.provider';
 import { ConversionAsset } from '../asset.enum';
+import { MetricsService } from '../../common/metrics/metrics.service';
+
+function createMetricsServiceStub(): MetricsService {
+  return {
+    trackExternalCall: (_service: string, _operation: string, fn: () => Promise<unknown>) => fn(),
+  } as unknown as MetricsService;
+}
 
 function encodeUint256Word(value: bigint): string {
   return value.toString(16).padStart(64, '0');
@@ -16,7 +23,7 @@ describe('ChainlinkProvider', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    provider = new ChainlinkProvider();
+    provider = new ChainlinkProvider(createMetricsServiceStub());
     process.env = { ...originalEnv };
   });
 

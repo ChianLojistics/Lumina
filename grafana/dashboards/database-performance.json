@@ -1,0 +1,80 @@
+{
+  "uid": "lumina-database-performance",
+  "title": "Database Performance",
+  "tags": ["lumina", "database"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Query Duration Percentiles (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation))",
+          "legendFormat": "p50 {{operation}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation))",
+          "legendFormat": "p95 {{operation}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation))",
+          "legendFormat": "p99 {{operation}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Query Rate by Operation",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(db_query_duration_seconds_count[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Query Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "errps" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(db_query_errors_total[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Connection Pool",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "db_pool_total_connections", "legendFormat": "total", "refId": "A" },
+        { "expr": "db_pool_idle_connections", "legendFormat": "idle", "refId": "B" },
+        { "expr": "db_pool_waiting_requests", "legendFormat": "waiting", "refId": "C" }
+      ]
+    }
+  ]
+}
