@@ -5,6 +5,15 @@ import { WebhookService } from './webhook.service';
 import { Webhook } from '../entities/webhook.entity';
 import { WebhookDelivery, WebhookDeliveryStatus } from '../entities/webhook-delivery.entity';
 import { NotificationEvent } from '../events/notification-event.enum';
+import { MetricsService } from '../../common/metrics/metrics.service';
+
+function createMetricsServiceStub(): MetricsService {
+  return {
+    trackExternalCall: (_service: string, _operation: string, fn: () => Promise<unknown>) => fn(),
+    setQueueDepth: jest.fn(),
+    recordQueueJob: jest.fn(),
+  } as unknown as MetricsService;
+}
 
 describe('WebhookService', () => {
   let service: WebhookService;
@@ -30,6 +39,7 @@ describe('WebhookService', () => {
         WebhookService,
         { provide: getRepositoryToken(Webhook), useValue: webhookRepository },
         { provide: getRepositoryToken(WebhookDelivery), useValue: deliveryRepository },
+        { provide: MetricsService, useValue: createMetricsServiceStub() },
       ],
     }).compile();
 

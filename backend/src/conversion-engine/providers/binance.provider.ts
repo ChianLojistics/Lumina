@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConversionAsset } from '../asset.enum';
 import { PriceProvider } from './price-provider.interface';
+import { MetricsService } from '../../common/metrics/metrics.service';
 
 // Binance quotes against USDT rather than USD; treated as a 1:1 USD peg, same as the
 // other providers' stablecoin assumptions.
@@ -15,6 +16,8 @@ const BINANCE_SYMBOLS: Partial<Record<ConversionAsset, string>> = {
 export class BinanceProvider implements PriceProvider {
   readonly name = 'binance';
 
+  constructor(private readonly metricsService: MetricsService) {}
+
   async getPriceUsd(asset: ConversionAsset): Promise<number> {
     if (asset === ConversionAsset.USDT) {
       return 1;
@@ -26,20 +29,22 @@ export class BinanceProvider implements PriceProvider {
       throw new Error(`Binance does not support asset ${asset}`);
     }
 
-    const baseUrl = process.env.BINANCE_API_URL || 'https://api.binance.com/api/v3';
-    const response = await fetch(`${baseUrl}/ticker/price?symbol=${symbol}`);
+    return this.metricsService.trackExternalCall('binance', 'get_ticker_price', async () => {
+      const baseUrl = process.env.BINANCE_API_URL || 'https://api.binance.com/api/v3';
+      const response = await fetch(`${baseUrl}/ticker/price?symbol=${symbol}`);
 
-    if (!response.ok) {
-      throw new Error(`Binance request failed with status ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`Binance request failed with status ${response.status}`);
+      }
 
-    const json = await response.json();
-    const price = parseFloat(json?.price);
+      const json = await response.json();
+      const price = parseFloat(json?.price);
 
-    if (Number.isNaN(price)) {
-      throw new Error(`Binance returned no price for ${asset}`);
-    }
+      if (Number.isNaN(price)) {
+        throw new Error(`Binance returned no price for ${asset}`);
+      }
 
-    return price;
+      return price;
+    });
   }
 }

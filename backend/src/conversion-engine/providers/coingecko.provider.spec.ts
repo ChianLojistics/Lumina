@@ -1,11 +1,18 @@
 import { CoinGeckoProvider } from './coingecko.provider';
 import { ConversionAsset } from '../asset.enum';
+import { MetricsService } from '../../common/metrics/metrics.service';
+
+function createMetricsServiceStub(): MetricsService {
+  return {
+    trackExternalCall: (_service: string, _operation: string, fn: () => Promise<unknown>) => fn(),
+  } as unknown as MetricsService;
+}
 
 describe('CoinGeckoProvider', () => {
   let provider: CoinGeckoProvider;
 
   beforeEach(() => {
-    provider = new CoinGeckoProvider();
+    provider = new CoinGeckoProvider(createMetricsServiceStub());
   });
 
   afterEach(() => {

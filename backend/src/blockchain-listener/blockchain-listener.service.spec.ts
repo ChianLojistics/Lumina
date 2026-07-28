@@ -13,6 +13,13 @@ import { rpc } from '@stellar/stellar-sdk';
 import { BlockchainListenerService } from './blockchain-listener.service';
 import { Payment, PaymentCurrency, PaymentStatus } from '../payment/entities/payment.entity';
 import { NotificationEvent } from '../notification-service/events/notification-event.enum';
+import { MetricsService } from '../common/metrics/metrics.service';
+
+function createMetricsServiceStub(): MetricsService {
+  return {
+    trackExternalCall: (_service: string, _operation: string, fn: () => Promise<unknown>) => fn(),
+  } as unknown as MetricsService;
+}
 
 function buildPayment(overrides: Partial<Payment> = {}): Payment {
   return {
@@ -65,6 +72,7 @@ describe('BlockchainListenerService', () => {
       merchantRepository as any,
       paymentService as any,
       notificationService as any,
+      createMetricsServiceStub(),
     );
   });
 

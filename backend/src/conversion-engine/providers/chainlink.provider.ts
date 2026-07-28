@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConversionAsset } from '../asset.enum';
 import { PriceProvider } from './price-provider.interface';
+import { MetricsService } from '../../common/metrics/metrics.service';
 
 const FEED_ENV_KEYS: Record<ConversionAsset, string> = {
   [ConversionAsset.BTC]: 'CHAINLINK_BTC_USD_FEED',
@@ -17,6 +18,8 @@ const DECIMALS_SELECTOR = '0x313ce567';
 @Injectable()
 export class ChainlinkProvider implements PriceProvider {
   readonly name = 'chainlink';
+
+  constructor(private readonly metricsService: MetricsService) {}
 
   async getPriceUsd(asset: ConversionAsset): Promise<number> {
     const rpcUrl = process.env.CHAINLINK_RPC_URL;
@@ -41,27 +44,29 @@ export class ChainlinkProvider implements PriceProvider {
   }
 
   private async ethCall(rpcUrl: string, to: string, data: string): Promise<string> {
-    const response = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_call',
-        params: [{ to, data }, 'latest'],
-      }),
+    return this.metricsService.trackExternalCall('chainlink', 'eth_call', async () => {
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_call',
+          params: [{ to, data }, 'latest'],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Chainlink RPC request failed with status ${response.status}`);
+      }
+
+      const json = await response.json();
+
+      if (json.error) {
+        throw new Error(json.error.message || 'eth_call failed');
+      }
+
+      return json.result as string;
     });
-
-    if (!response.ok) {
-      throw new Error(`Chainlink RPC request failed with status ${response.status}`);
-    }
-
-    const json = await response.json();
-
-    if (json.error) {
-      throw new Error(json.error.message || 'eth_call failed');
-    }
-
-    return json.result as string;
   }
 }

@@ -1,0 +1,76 @@
+groups:
+  - name: lumina-api
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate on {{ $labels.service }}"
+          description: >-
+            {{ $labels.service }} has returned 5xx responses for more than 5% of
+            requests over the last 5 minutes (current value: {{ $value | humanizePercentage }}).
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency on {{ $labels.service }}"
+          description: >-
+            p95 HTTP request latency on {{ $labels.service }} has been above 2s
+            for 5 minutes (current value: {{ $value | humanizeDuration }}).
+
+  - name: lumina-database
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_pool_waiting_requests > 0
+          or
+          (db_pool_idle_connections == 0 and db_pool_total_connections > 0)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: >-
+            The backend's Postgres connection pool has queries waiting for a
+            free connection, or has zero idle connections, for 5 minutes.
+            total={{ $labels.service }} waiting={{ $value }}.
+
+  - name: lumina-queues
+    rules:
+      - alert: QueueDepthThresholdExceeded
+        expr: queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue {{ $labels.queue }} depth is too high"
+          description: >-
+            Queue "{{ $labels.queue }}" has had more than 100 pending jobs for
+            5 minutes (current value: {{ $value }}).
+
+  - name: lumina-availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: >-
+            Prometheus has failed to scrape {{ $labels.job }} ({{ $labels.instance }})
+            for 1 minute; its health check is failing.

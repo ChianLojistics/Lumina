@@ -7,6 +7,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ConversionEngineService } from '../conversion-engine/conversion-engine.service';
 import { ConversionAsset } from '../conversion-engine/asset.enum';
 import { PaymentException } from '../common/exceptions';
+import { MetricsService } from '../common/metrics/metrics.service';
 
 @Injectable()
 export class PaymentService {
@@ -18,6 +19,7 @@ export class PaymentService {
     @InjectRepository(Merchant)
     private merchantRepository: Repository<Merchant>,
     private conversionEngineService: ConversionEngineService,
+    private metricsService: MetricsService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
@@ -37,6 +39,7 @@ export class PaymentService {
     });
 
     const savedPayment = await this.paymentRepository.save(payment);
+    this.metricsService.recordPayment(savedPayment.currency, savedPayment.status, savedPayment.amount);
 
     if (savedPayment.currency !== PaymentCurrency.USDC) {
       this.conversionEngineService
@@ -79,13 +82,15 @@ export class PaymentService {
 
   async updateStatus(paymentId: string, status: PaymentStatus, transactionHash?: string): Promise<Payment> {
     const payment = await this.findOne(paymentId);
-    
+
     payment.status = status;
     if (transactionHash) {
       payment.transaction_hash = transactionHash;
     }
 
-    return this.paymentRepository.save(payment);
+    const updatedPayment = await this.paymentRepository.save(payment);
+    this.metricsService.recordPayment(updatedPayment.currency, updatedPayment.status, updatedPayment.amount);
+    return updatedPayment;
   }
 
   private generatePaymentId(): string {

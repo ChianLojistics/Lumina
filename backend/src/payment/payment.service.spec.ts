@@ -6,12 +6,14 @@ import { Payment, PaymentCurrency } from './entities/payment.entity';
 import { Merchant } from './entities/merchant.entity';
 import { ConversionEngineService } from '../conversion-engine/conversion-engine.service';
 import { ConversionAsset } from '../conversion-engine/asset.enum';
+import { MetricsService } from '../common/metrics/metrics.service';
 
 describe('PaymentService', () => {
   let service: PaymentService;
   let paymentRepository: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock };
   let merchantRepository: { findOne: jest.Mock };
   let conversionEngineService: { executeConversion: jest.Mock };
+  let metricsService: { recordPayment: jest.Mock };
 
   beforeEach(async () => {
     paymentRepository = {
@@ -23,6 +25,7 @@ describe('PaymentService', () => {
     conversionEngineService = {
       executeConversion: jest.fn().mockResolvedValue(undefined),
     };
+    metricsService = { recordPayment: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -30,6 +33,7 @@ describe('PaymentService', () => {
         { provide: getRepositoryToken(Payment), useValue: paymentRepository },
         { provide: getRepositoryToken(Merchant), useValue: merchantRepository },
         { provide: ConversionEngineService, useValue: conversionEngineService },
+        { provide: MetricsService, useValue: metricsService },
       ],
     }).compile();
 
