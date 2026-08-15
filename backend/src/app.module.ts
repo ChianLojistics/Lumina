@@ -10,6 +10,7 @@ import { ConversionEngineModule } from './conversion-engine/conversion-engine.mo
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { RampModule } from './ramp-service/ramp-service.module';
+import { CryptoModule } from './crypto/crypto.module';
 import { MetricsModule } from './common/metrics/metrics.module';
 import { MetricsService } from './common/metrics/metrics.service';
 import { TypeOrmMetricsLogger } from './common/metrics/typeorm-metrics.logger';
@@ -43,6 +44,7 @@ import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
     }),
     AuthModule,
     RampModule,
+    CryptoModule,
     PaymentModule,
     ApiGatewayModule,
     BlockchainListenerModule,
