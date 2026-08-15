@@ -40,11 +40,6 @@ export class RampController {
     return this.rampService.createBankAccount(dto);
   }
 
-  @Post('kyc/initiate')
-  async initiateKyc(@Body() dto: InitiateKycDto) {
-    return this.rampService.initiateKyc(dto);
-  }
-
   @Get('kyc/status/:userId')
   async getKycStatus(@Param('userId') userId: string) {
     return this.rampService.getKycStatus(userId);
