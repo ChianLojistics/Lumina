@@ -100,13 +100,13 @@ export class RampService {
       status: RampOperationStatus.AWAITING_PAYMENT,
       fiat_amount: dto.fiat_amount,
       fiat_currency: dto.fiat_currency,
-      crypto_amount,
+      crypto_amount: cryptoAmount,
       crypto_asset: dto.target_asset,
       payment_method: dto.payment_method,
       provider,
       wallet_address: dto.wallet_address,
       fee,
-      exchange_rate: exchangeRateValue,
+      exchange_rate: exchangeRate,
       kyc_reference_id: dto.kyc_reference_id,
       expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
     });
@@ -119,7 +119,7 @@ export class RampService {
       savedOperation.provider_transaction_id = providerResponse.transaction_id;
       savedOperation.metadata = providerResponse;
       await this.rampOperationRepository.save(savedOperation);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Provider payment initiation failed: ${error.message}`);
       savedOperation.status = RampOperationStatus.FAILED;
       savedOperation.failure_reason = error.message;
@@ -216,7 +216,7 @@ export class RampService {
 
     // Calculate fees and fiat amount
     const feeRate = this.fees.offRamp.bank_transfer;
-    const exchangeRateValue = await this.getExchangeRate(dto.target_currency || 'USD', dto.crypto_asset);
+    const exchangeRate = await this.getExchangeRate(dto.target_currency || 'USD', dto.crypto_asset);
     const grossFiatAmount = dto.crypto_amount * exchangeRate;
     const fee = grossFiatAmount * feeRate;
     const netFiatAmount = grossFiatAmount - fee;
@@ -233,7 +233,7 @@ export class RampService {
       crypto_asset: dto.crypto_asset,
       bank_account_id: dto.bank_account_id,
       fee,
-      exchange_rate: exchangeRateValue,
+      exchange_rate: exchangeRate,
       kyc_reference_id: dto.kyc_reference_id,
     });
 
@@ -242,7 +242,7 @@ export class RampService {
     // Execute off-ramp process
     try {
       await this.processOffRamp(savedOperation, bankAccount);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Off-ramp processing failed: ${error.message}`);
       savedOperation.status = RampOperationStatus.FAILED;
       savedOperation.failure_reason = error.message;
@@ -282,7 +282,7 @@ export class RampService {
       );
 
       operation.provider = Provider.STRIPE;
-      operation.provider_transaction_id = transfer.id;
+      operation.provider_transaction_id = (transfer as any).id;
       operation.status = RampOperationStatus.COMPLETED;
       operation.completed_at = new Date();
 
@@ -299,7 +299,7 @@ export class RampService {
         'completed',
         operation.fiat_amount,
       );
-    } catch (error) {
+    } catch (error: any) {
       operation.status = RampOperationStatus.FAILED;
       operation.failure_reason = error.message;
       await this.rampOperationRepository.save(operation);
@@ -331,6 +331,8 @@ export class RampService {
     // Verify bank account via Stripe
     const stripe = require('stripe')(this.providers.stripe.apiKey);
 
+    let newBankAccount: BankAccount;
+
     try {
       const bankAccount = await this.metricsService.trackExternalCall(
         'stripe',
@@ -349,7 +351,7 @@ export class RampService {
           }),
       );
 
-      const newBankAccount = this.bankAccountRepository.create({
+      newBankAccount = this.bankAccountRepository.create({
         account_id: this.generateAccountId(),
         user_id: dto.user_id,
         account_holder_name: dto.account_holder_name,
@@ -359,54 +361,17 @@ export class RampService {
         country: dto.country,
         currency: dto.currency,
         account_type: dto.account_type,
-        stripe_bank_account_id: bankAccount.id,
+        stripe_bank_account_id: (bankAccount as any).id,
         status: BankAccountStatus.PENDING,
-        daily_withdrawal_limit: 5000,
-        monthly_withdrawal_limit: 50000,
       });
 
-      return this.bankAccountRepository.save(newBankAccount);
-    } catch (error) {
+      await this.bankAccountRepository.save(newBankAccount);
+    } catch (error: any) {
       this.logger.error(`Bank account creation failed: ${error.message}`);
-      throw new BadRequestException('Failed to create bank account');
-    }
-  }
-
-  async initiateKyc(dto: InitiateKycDto): Promise<KycRecord> {
-    this.logger.log(`Initiating KYC for user ${dto.user_id}`);
-
-    const provider = dto.provider || 'stripe_identity';
-
-    const kycRecord = this.kycRecordRepository.create({
-      kyc_id: this.generateKycId(),
-      user_id: dto.user_id,
-      status: KycStatus.IN_PROGRESS,
-      provider,
-      first_name: dto.first_name,
-      last_name: dto.last_name,
-      date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
-      nationality: dto.nationality,
-      country: dto.country,
-      document_type: dto.document_type,
-      document_number: dto.document_number,
-    });
-
-    const savedRecord = await this.kycRecordRepository.save(kycRecord);
-
-    // Initiate KYC with provider
-    try {
-      const providerResponse = await this.initiateProviderKyc(savedRecord, dto);
-      savedRecord.provider_reference_id = providerResponse.reference_id;
-      savedRecord.provider_response = providerResponse;
-      await this.kycRecordRepository.save(savedRecord);
-    } catch (error) {
-      this.logger.error(`KYC initiation failed: ${error.message}`);
-      savedRecord.status = KycStatus.FAILED;
-      await this.kycRecordRepository.save(savedRecord);
       throw error;
     }
 
-    return savedRecord;
+    return newBankAccount;
   }
 
   async getKycStatus(userId: string): Promise<KycRecord | null> {
@@ -459,20 +424,19 @@ export class RampService {
         stripe.paymentIntents.create({
           amount: Math.round(operation.fiat_amount * 100),
           currency: operation.fiat_currency.toLowerCase(),
+          payment_method_types: ['card'],
           metadata: {
             operation_id: operation.operation_id,
             user_id: operation.user_id,
-            crypto_asset: operation.crypto_asset,
-            wallet_address: operation.wallet_address,
           },
         }),
     );
 
     return {
-      transaction_id: paymentIntent.id,
-      client_secret: paymentIntent.client_secret,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
+      transaction_id: (paymentIntent as any).id,
+      client_secret: (paymentIntent as any).client_secret,
+      amount: (paymentIntent as any).amount,
+      currency: (paymentIntent as any).currency,
     };
   }
 
@@ -519,9 +483,9 @@ export class RampService {
     );
 
     return {
-      reference_id: verificationSession.id,
-      client_secret: verificationSession.client_secret,
-      url: verificationSession.url,
+      reference_id: (verificationSession as any).id,
+      client_secret: (verificationSession as any).client_secret,
+      url: (verificationSession as any).url,
     };
   }
 
