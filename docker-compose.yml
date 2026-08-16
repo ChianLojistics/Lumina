@@ -18,6 +18,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: lumina-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -30,10 +43,14 @@ services:
       DATABASE_PASSWORD: lumina_password
       DATABASE_NAME: lumina
       PORT: 4000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "4000:4000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -126,6 +143,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   prometheus_data:
   alertmanager_data:
   grafana_data:
