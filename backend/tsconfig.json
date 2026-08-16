@@ -22,5 +22,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "exclude": ["**/*.spec.ts"]
+  "exclude": ["**/*.e2e-spec.ts"]
 }
