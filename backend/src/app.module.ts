@@ -13,6 +13,7 @@ import { RampModule } from './ramp-service/ramp-service.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { MetricsModule } from './common/metrics/metrics.module';
 import { DistributedLedgerModule } from './distributed-ledger/distributed-ledger.module';
+import { ZKPModule } from './zkp/zkp.module';
 import { MetricsService } from './common/metrics/metrics.service';
 import { TypeOrmMetricsLogger } from './common/metrics/typeorm-metrics.logger';
 import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
@@ -47,6 +48,7 @@ import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
     RampModule,
     CryptoModule,
     DistributedLedgerModule,
+    ZKPModule,
     PaymentModule,
     ApiGatewayModule,
     BlockchainListenerModule,
