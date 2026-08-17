@@ -1,11 +1,9 @@
-import { Injectable, Logger, Cache } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ZKPProof, ProofType } from '../entities/zkp-proof.entity';
 import { Nullifier } from '../entities/nullifier.entity';
 import { ZKProof, PaymentDetails, SettlementDetails, IdentityDetails } from '../interfaces/zkp-proof.interface';
-import { Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/common';
 
 @Injectable()
 export class ZKPProofService {
@@ -16,8 +14,6 @@ export class ZKPProofService {
     private readonly zkpProofRepository: Repository<ZKPProof>,
     @InjectRepository(Nullifier)
     private readonly nullifierRepository: Repository<Nullifier>,
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
   ) {}
 
   async generatePaymentProof(payment: PaymentDetails): Promise<ZKProof> {
@@ -74,18 +70,11 @@ export class ZKPProofService {
       
       await this.nullifierRepository.save(nullifierEntity);
       
-      // Cache the proof
-      await this.cacheManager.set(
-        `proof:${payment.paymentHash}`,
-        proof,
-        { ttl: 3600 }
-      );
-      
       this.logger.log(`Payment proof generated successfully in ${Date.now() - startTime}ms`);
       
       return proof;
     } catch (error) {
-      this.logger.error(`Failed to generate payment proof: ${error.message}`);
+      this.logger.error(`Failed to generate payment proof: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -133,7 +122,7 @@ export class ZKPProofService {
       
       return proof;
     } catch (error) {
-      this.logger.error(`Failed to generate settlement proof: ${error.message}`);
+      this.logger.error(`Failed to generate settlement proof: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -170,18 +159,9 @@ export class ZKPProofService {
       
       return proof;
     } catch (error) {
-      this.logger.error(`Failed to generate identity proof: ${error.message}`);
+      this.logger.error(`Failed to generate identity proof: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
-  }
-
-  async getCachedProof(transactionId: string): Promise<ZKProof | null> {
-    const cached = await this.cacheManager.get(`proof:${transactionId}`);
-    if (cached) {
-      this.logger.log(`Retrieved cached proof for transaction: ${transactionId}`);
-      return cached as ZKProof;
-    }
-    return null;
   }
 
   async getProofById(id: string): Promise<ZKPProof> {

@@ -31,6 +31,7 @@
     "@noble/post-quantum": "^0.7.0",
     "@sentry/node": "^8.55.0",
     "@stellar/stellar-sdk": "^13.3.0",
+    "@types/cache-manager": "^4.0.6",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.9",
     "cache-manager-redis-store": "^3.0.1",

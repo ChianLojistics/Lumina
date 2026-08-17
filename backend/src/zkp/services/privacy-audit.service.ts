@@ -74,7 +74,7 @@ export class PrivacyAuditService {
         merkleRoot: merkleTree.root,
       };
     } catch (error) {
-      this.logger.error(`Failed to generate audit proof: ${error.message}`);
+      this.logger.error(`Failed to generate audit proof: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -107,10 +107,11 @@ export class PrivacyAuditService {
         return false;
       }
       
-      this.logger.log('Audit proof verified successfully');
+      this.logger.log(`Audit proof verified successfully`);
+      
       return true;
     } catch (error) {
-      this.logger.error(`Failed to verify audit proof: ${error.message}`);
+      this.logger.error(`Failed to verify audit proof: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }

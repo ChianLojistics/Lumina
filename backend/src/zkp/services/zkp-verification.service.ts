@@ -42,7 +42,7 @@ export class ZKPVerificationService {
       
       return isValid;
     } catch (error) {
-      this.logger.error(`Failed to verify payment proof: ${error.message}`);
+      this.logger.error(`Failed to verify payment proof: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
@@ -62,7 +62,7 @@ export class ZKPVerificationService {
       
       return isValid;
     } catch (error) {
-      this.logger.error(`Failed to verify settlement proof: ${error.message}`);
+      this.logger.error(`Failed to verify settlement proof: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
@@ -82,7 +82,7 @@ export class ZKPVerificationService {
       
       return isValid;
     } catch (error) {
-      this.logger.error(`Failed to verify identity proof: ${error.message}`);
+      this.logger.error(`Failed to verify identity proof: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
@@ -103,7 +103,7 @@ export class ZKPVerificationService {
       
       const proof: ZKProof = {
         proof: JSON.parse(proofEntity.proofData.toString()),
-        publicSignals: proofEntity.publicInputs,
+        publicSignals: Object.values(proofEntity.publicInputs),
         proofType: proofEntity.proofType,
       };
       
@@ -119,7 +119,7 @@ export class ZKPVerificationService {
           return false;
       }
     } catch (error) {
-      this.logger.error(`Failed to verify proof by transaction ID: ${error.message}`);
+      this.logger.error(`Failed to verify proof by transaction ID: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
