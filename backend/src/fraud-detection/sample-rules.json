@@ -1,0 +1,152 @@
+{
+  "rules": [
+    {
+      "id": "rule_001",
+      "name": "High Value Transaction Alert",
+      "description": "Alert on transactions over $10,000",
+      "enabled": true,
+      "priority": "HIGH",
+      "conditions": [
+        {
+          "field": "amount",
+          "operator": "GT",
+          "value": 10000
+        }
+      ],
+      "actions": [
+        {
+          "type": "ALERT",
+          "params": {
+            "severity": "HIGH",
+            "message": "High value transaction detected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rule_002",
+      "name": "Velocity Check - Multiple Cards",
+      "description": "Block if more than 3 different cards in 5 minutes",
+      "enabled": true,
+      "priority": "CRITICAL",
+      "conditions": [
+        {
+          "type": "COMPOSITE",
+          "logicalOperator": "AND",
+          "conditions": [
+            {
+              "field": "transaction_count",
+              "window": "5m",
+              "operator": "GT",
+              "value": 3
+            },
+            {
+              "field": "unique_cards",
+              "window": "5m",
+              "operator": "GT",
+              "value": 3
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "BLOCK",
+          "params": {
+            "reason": "Velocity check failed - multiple cards"
+          }
+        },
+        {
+          "type": "ALERT",
+          "params": {
+            "severity": "CRITICAL",
+            "message": "Velocity check triggered"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rule_003",
+      "name": "Geolocation Anomaly",
+      "description": "Alert if transaction from unusual location",
+      "enabled": true,
+      "priority": "MEDIUM",
+      "conditions": [
+        {
+          "type": "COMPOSITE",
+          "logicalOperator": "AND",
+          "conditions": [
+            {
+              "field": "country",
+              "operator": "NOT_IN",
+              "value": ["US", "CA", "GB", "AU"]
+            },
+            {
+              "field": "distance_from_home",
+              "operator": "GT",
+              "value": 500
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "ALERT",
+          "params": {
+            "severity": "MEDIUM",
+            "message": "Unusual geolocation detected"
+          }
+        },
+        {
+          "type": "REQUIRE_2FA",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "id": "rule_004",
+      "name": "Suspicious Email Domain",
+      "description": "Flag transactions from known disposable email domains",
+      "enabled": true,
+      "priority": "MEDIUM",
+      "conditions": [
+        {
+          "field": "email",
+          "operator": "CONTAINS",
+          "value": "@tempmail.com"
+        }
+      ],
+      "actions": [
+        {
+          "type": "FLAG",
+          "params": {
+            "reason": "Disposable email domain detected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rule_005",
+      "name": "Rapid Successive Transactions",
+      "description": "Block more than 10 transactions in 1 minute",
+      "enabled": true,
+      "priority": "HIGH",
+      "conditions": [
+        {
+          "field": "transaction_count",
+          "window": "1m",
+          "operator": "GTE",
+          "value": 10
+        }
+      ],
+      "actions": [
+        {
+          "type": "BLOCK",
+          "params": {
+            "reason": "Too many rapid transactions"
+          }
+        }
+      ]
+    }
+  ]
+}
