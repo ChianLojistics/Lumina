@@ -5,6 +5,7 @@ export enum WebhookDeliveryStatus {
   SUCCESS = 'success',
   RETRYING = 'retrying',
   FAILED = 'failed',
+  DLQ = 'dlq',
 }
 
 @Entity('webhook_deliveries')
@@ -14,6 +15,9 @@ export class WebhookDelivery {
 
   @Column()
   webhook_id: string;
+
+  @Column({ nullable: true })
+  event_id: string;
 
   @Column()
   event: string;
@@ -39,6 +43,9 @@ export class WebhookDelivery {
 
   @Column({ nullable: true })
   next_retry_at: Date | null;
+
+  @Column({ nullable: true })
+  delivered_at: Date | null;
 
   @Column({ nullable: true })
   response_status: number | null;

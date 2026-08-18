@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CreditCard, ArrowDownLeft, Key, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, CreditCard, ArrowDownLeft, Key, Settings, Webhook, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
   { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   { name: "Withdrawals", href: "/dashboard/withdrawals", icon: ArrowDownLeft },
   { name: "API Keys", href: "/dashboard/api-keys", icon: Key },
+  { name: "Webhooks", href: "/dashboard/webhooks", icon: Webhook },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

@@ -17,6 +17,16 @@ export class Webhook {
   @Column()
   secret: string;
 
+  @Column('jsonb', { nullable: true })
+  filters: {
+    amount?: { min?: number; max?: number };
+    currency?: string[];
+    status?: string[];
+  };
+
+  @Column('jsonb', { nullable: true })
+  headers: Record<string, string>;
+
   @Column({ default: true })
   is_active: boolean;
 
