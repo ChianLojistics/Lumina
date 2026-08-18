@@ -1,19 +1,15 @@
-import { ArrayNotEmpty, IsArray, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsObject, IsOptional, IsUrl } from 'class-validator';
 import { NotificationEvent } from '../../events/notification-event.enum';
 
-export class RegisterWebhookDto {
-  @IsString()
-  @IsNotEmpty()
-  merchant_id: string;
-
+export class UpdateWebhookDto {
+  @IsOptional()
   @IsUrl({ require_tld: false })
-  @IsNotEmpty()
-  url: string;
+  url?: string;
 
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @IsEnum(NotificationEvent, { each: true })
-  events: NotificationEvent[];
+  events?: NotificationEvent[];
 
   @IsOptional()
   @IsObject()
@@ -26,4 +22,8 @@ export class RegisterWebhookDto {
   @IsOptional()
   @IsObject()
   headers?: Record<string, string>;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }
