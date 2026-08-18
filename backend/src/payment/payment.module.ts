@@ -5,9 +5,14 @@ import { PaymentController } from './payment.controller';
 import { Payment } from './entities/payment.entity';
 import { Merchant } from './entities/merchant.entity';
 import { ConversionEngineModule } from '../conversion-engine/conversion-engine.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment, Merchant]), ConversionEngineModule],
+  imports: [
+    TypeOrmModule.forFeature([Payment, Merchant]),
+    ConversionEngineModule,
+    CommonModule,
+  ],
   controllers: [PaymentController],
   providers: [PaymentService],
   exports: [PaymentService],
