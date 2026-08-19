@@ -1,0 +1,66 @@
+rules:
+  - id: no-hardcoded-secrets
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Hardcoded credential-like literal detected. Load secrets from
+      process.env / a secrets manager instead of committing them.
+    metadata:
+      category: security
+      cwe: 'CWE-798: Use of Hard-coded Credentials'
+    patterns:
+      - pattern-either:
+          - pattern: const $VAR = "..."
+          - pattern: let $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)^(api[_-]?key|secret|password|passwd|token|private[_-]?key)$
+      - pattern-not: const $VAR = process.env.$ENV
+
+  - id: sql-injection-string-concat
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Building a SQL query with string concatenation/interpolation of a
+      variable is a SQL injection risk. Use parameterized queries
+      (TypeORM query builder / prepared statement params) instead.
+    metadata:
+      category: security
+      cwe: 'CWE-89: SQL Injection'
+    patterns:
+      - pattern-either:
+          - pattern: $QUERY = $BASE + $INPUT
+          - pattern: $QUERY = `...${$INPUT}...`
+      - pattern-inside: |
+          $QUERY = ...
+          ...
+          $DB.query($QUERY, ...)
+
+  - id: weak-crypto-hash
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      MD5/SHA1 are cryptographically broken for security-sensitive use
+      (password hashing, signatures, integrity checks). Use SHA-256/SHA-512
+      or a purpose-built KDF (bcrypt/argon2) instead.
+    metadata:
+      category: security
+      cwe: 'CWE-327: Use of a Broken or Risky Cryptographic Algorithm'
+    patterns:
+      - pattern-either:
+          - pattern: crypto.createHash("md5")
+          - pattern: crypto.createHash("sha1")
+
+  - id: disabled-tls-verification
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      TLS certificate verification is disabled. This allows
+      man-in-the-middle attacks against payment/webhook traffic.
+    metadata:
+      category: security
+      cwe: 'CWE-295: Improper Certificate Validation'
+    patterns:
+      - pattern-either:
+          - pattern: '$AXIOS.create({..., rejectUnauthorized: false, ...})'
+          - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
