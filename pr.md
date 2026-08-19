@@ -1,63 +1,90 @@
-## [Infrastructure] Implement Monitoring with Prometheus and Grafana
+## [Feature] Automated Security Scanning and Vulnerability Management
 
-Closes #17
+Closes #70
 
 ### Overview
 
-Adds a full monitoring and observability stack — metrics collection in the
-backend, Prometheus scraping/alerting, and provisioned Grafana dashboards —
-where none existed before.
+Adds continuous, automated security scanning (SAST, dependency, secret,
+container, IaC, and DAST) plus an in-app vulnerability management system,
+where security checks were previously manual and inconsistent.
+
+SonarQube, Snyk, and Burp Suite from the original issue were intentionally
+left out — they need paid accounts/tokens this repo doesn't have. Semgrep,
+`npm audit`, and OWASP ZAP cover the same categories (SAST / dependency /
+DAST) for free, with no external account required to run in CI. See
+"Known gaps" in the docs below for the rest of what's out of scope here.
 
 ### What's included
 
-**Application metrics** (`backend/src/common/metrics/`)
-- New `MetricsService` wrapping a `prom-client` registry, exposed at `GET /metrics`.
-- `HttpMetricsInterceptor` — request rate/latency/error metrics for every route (`http_requests_total`, `http_request_duration_seconds`).
-- `TypeOrmMetricsLogger` — database query duration/error metrics (`db_query_duration_seconds`, `db_query_errors_total`), wired via `TypeOrmModule.forRootAsync` with `maxQueryExecutionTime: 1` so the duration hook fires for effectively every query.
-- `DbPoolMetricsService` — polls the underlying `pg` pool every 10s for `db_pool_total_connections` / `db_pool_idle_connections` / `db_pool_waiting_requests`.
-- `trackExternalCall()` helper wraps outbound calls with latency + success/error counters (`external_service_call_duration_seconds`, `external_service_calls_total`), applied to: CoinGecko, Binance, and Chainlink price providers; Stellar RPC calls in the blockchain listener; Stripe calls in the ramp service; and webhook delivery.
-- Queue metrics (`queue_depth`, `queue_job_processing_duration_seconds`, `queue_jobs_total`) applied to the webhook delivery retry queue — the one queue-like system in the codebase today.
-- Business metrics: `payments_total` / `payment_volume_total` (payment service) and `ramp_operations_total` / `ramp_operation_volume_total` (on/off-ramp), both labeled by currency and status for success-rate dashboards.
+**CI security scanning** (`.github/workflows/security-scan.yml`) — runs on
+push to `main`/`develop`, PRs into `main`, and daily on a schedule:
+- **SAST** — Semgrep, using the community `p/security-audit`, `p/secrets`,
+  `p/typescript`, `p/nodejsscan` rulesets plus custom rules
+  (`.semgrep/security-rules.yaml`) for hardcoded secrets, string-concatenated
+  SQL, weak hashes (MD5/SHA1), and disabled TLS verification.
+- **Dependency scan** — `npm audit --audit-level=high` across `backend/` and
+  `frontend/` (matrix job), fails the build on high/critical findings.
+- **Secret scan** — Gitleaks over full git history, with an allowlist
+  (`.gitleaks.toml`) for test fixtures and `.env.example`.
+- **Container scan** — Trivy against the built backend image.
+- **IaC scan** — Checkov over the Dockerfiles and `docker-compose.yml`
+  (no Terraform directory exists yet to point it at).
+- **DAST** — OWASP ZAP baseline scan against the backend, brought up via
+  `docker compose` (Postgres + Redis + backend) and health-checked before
+  scanning. Runs on push/schedule only, not PRs, to keep PR CI fast.
+- SARIF output from Semgrep, Trivy, and Checkov uploads to the repo's
+  **Security** tab via `github/codeql-action/upload-sarif`.
+- Every job optionally forwards its results into the vulnerability dashboard
+  (`POST /security/scans/ingest`) when `SECURITY_API_URL` /
+  `SECURITY_SCAN_TOKEN` secrets are configured — a no-op otherwise.
+- `.github/dependabot.yml` — weekly PRs for `backend`/`frontend` npm deps,
+  the backend's Docker base image, and GitHub Actions versions.
 
-**Prometheus** (`prometheus/`)
-- `prometheus.yml` — scrape config for the backend, Prometheus/Alertmanager self-monitoring, `node-exporter` (host metrics), and `postgres-exporter`.
-- 15-day retention and TSDB storage path configured via CLI flags on the `prometheus` service in `docker-compose.yml`.
-- `alerts/rules.yml` — the five required alerts: `HighErrorRate` (>5% 5xx for 5m), `HighLatency` (p95 > 2s for 5m), `DatabaseConnectionPoolExhausted`, `QueueDepthThresholdExceeded`, `ServiceDown` (via Prometheus's built-in `up` metric).
+**Vulnerability management** (`backend/src/security/`)
+- `Vulnerability` / `SecurityEvent` entities (`entities/`).
+- `ScanResultParser` normalizes SARIF (Semgrep/Trivy/ZAP), `npm audit`, and
+  Gitleaks reports into a common shape, deduplicated by a fingerprint of
+  (source, rule, affected component, location) — re-ingesting a known
+  finding updates its details but never touches `status`/`assigned_to`, so
+  triage state survives repeat scans.
+- `VulnerabilityManagementService` — ingest, list/get, assign, resolve,
+  ignore, and a dashboard (open counts by severity/type, 30-day trend).
+  Every state transition is recorded as a `SecurityEvent` for audit history.
+- `SecurityAlertService` — logs every CRITICAL finding and optionally POSTs
+  a summary to `SECURITY_ALERT_WEBHOOK_URL` (e.g. a Slack incoming webhook).
+- `SecurityController`:
+  - `POST /security/scans/ingest` — guarded by a shared-secret `x-scan-token`
+    header (`ScanIngestGuard`), since CI posts here, not a logged-in user.
+  - `GET /security/dashboard`, `GET /security/vulnerabilities[/:id]`,
+    `POST /security/vulnerabilities/:id/{assign,resolve,ignore}` — behind
+    the existing `JwtAuthGuard` + `RolesGuard(Role.ADMIN)`.
+- Wired into `AppModule`.
 
-**Alertmanager** (`alertmanager/`)
-- Routes `severity: critical` to Slack + PagerDuty, `severity: warning` to Slack only; groups by `alertname` + `service`; inhibits latency/error-rate noise when `ServiceDown` is already firing for the same service.
-- Secrets (Slack webhook, SMTP, PagerDuty routing key) are read from files under `alertmanager/secrets/` (git-ignored, `.example` templates committed) since Alertmanager doesn't expand env vars in its config.
-- On-call/escalation policy documented in `alertmanager/README.md` (owned by PagerDuty's escalation policy, not this repo).
+**Docs** — `docs/SECURITY_SCANNING.md` covers what each job checks, how to
+enable CI→dashboard reporting and webhook alerts, local commands to run each
+scanner, and known gaps. `SECURITY_SCAN_TOKEN` / `SECURITY_ALERT_WEBHOOK_URL`
+added to `.env.example`.
 
-**Grafana** (`grafana/`)
-- Auto-provisioned Prometheus datasource + five dashboards, no manual import needed: System Overview, API Performance, Database Performance, Queue Metrics, Business Metrics.
+### Testing
 
-**docker-compose.yml**
-- New services: `prometheus`, `alertmanager`, `grafana`, `node-exporter`, `postgres-exporter`, wired to the existing `backend`/`postgres` services.
+- 15 new unit tests (`backend/src/security/**/*.spec.ts`): SARIF severity
+  mapping (CVSS score vs. level fallback), CVE extraction, fingerprint
+  stability across re-scans, npm-audit/Gitleaks mapping, create-vs-update-
+  on-ingest, critical-finding alerting, status preservation on re-scan,
+  assign/resolve, and dashboard grouping — all passing.
+- `tsc --noEmit` clean for the new module.
+- Full existing backend test suite re-run: no regressions from this change
+  (pre-existing failures in `crypto`/`distributed-ledger` specs are
+  unrelated — ESM import issues and a private-property access, both present
+  before this branch).
+- All new YAML (`security-scan.yml`, `dependabot.yml`, Semgrep rules)
+  validated with a YAML parser.
 
-### Not included / follow-ups
+### Manual verification still needed
 
-- **Centralized, searchable logging** (the "Logging centralized and searchable" acceptance item) is a separate concern from metrics/dashboards/alerting — the backend already emits structured JSON logs via Winston with correlation IDs, but shipping them to a searchable store (Loki, ELK) is a large enough addition that it deserves its own PR/issue rather than being bundled into "Prometheus and Grafana."
-- `backend/package-lock.json` was not regenerated (no network access in this environment to run `npm install`) — run `npm install` in `backend/` after merging to lock `prom-client`.
-- Pre-existing, unrelated bugs noticed in `ramp-service.service.ts` (undefined `crypto_amount`/`exchangeRateValue`/`exchangeRate` references in `initiateOnRamp`/`initiateOffRamp`) were left untouched — out of scope for this monitoring PR.
-
-### How to try it
-
-```bash
-cp .env.example .env
-cd alertmanager/secrets && for f in *.example; do cp "$f" "${f%.example}"; done && cd -
-docker-compose up -d
-```
-
-- Backend metrics: http://localhost:4000/metrics
-- Prometheus: http://localhost:9090
-- Alertmanager: http://localhost:9093
-- Grafana: http://localhost:3001 (`admin` / `admin` by default — see `.env.example`)
-
-### Test plan
-
-- [ ] `cd backend && npm install && npm test` — updated unit tests for `CoinGeckoProvider`, `BinanceProvider`, `ChainlinkProvider`, `BlockchainListenerService`, `WebhookService`, `PaymentService` pass with the new `MetricsService` dependency injected/stubbed.
-- [ ] `docker-compose up -d` and confirm `backend:4000/metrics` returns Prometheus text format.
-- [ ] Confirm Prometheus targets page shows all scrape jobs as `UP`.
-- [ ] Confirm Grafana loads the five dashboards under the "Lumina" folder with data flowing.
-- [ ] Trigger a synthetic 5xx burst and confirm `HighErrorRate` fires in Prometheus → Alertmanager → Slack.
+- The CI workflow itself (Semgrep/Trivy/Checkov/ZAP/Gitleaks marketplace
+  actions, docker-compose health-check timing) hasn't run in GitHub Actions
+  yet — needs a live run on this PR to confirm each job passes end-to-end.
+- CI→dashboard reporting and the Slack alert webhook are exercised by unit
+  tests only; wiring real secrets and confirming an ingested finding shows
+  up in `GET /security/dashboard` against a deployed backend is a follow-up.
