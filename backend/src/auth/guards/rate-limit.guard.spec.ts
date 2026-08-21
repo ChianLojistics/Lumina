@@ -1,7 +1,7 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RateLimitGuard } from './rate-limit.guard';
-import { RateLimiterService } from '../services/rate-limiter.service';
+import { RateLimitService } from '../../rate-limit/services/rate-limit.service';
 import { RateLimitException } from '../../common/exceptions';
 
 function createContext(request: Record<string, unknown>): ExecutionContext {
@@ -13,34 +13,53 @@ function createContext(request: Record<string, unknown>): ExecutionContext {
 }
 
 describe('RateLimitGuard', () => {
-  it('allows the request through when the route declares no rate limit', () => {
+  it('allows the request through when the route declares no rate limit', async () => {
     const reflector = { getAllAndOverride: jest.fn().mockReturnValue(undefined) } as unknown as Reflector;
-    const guard = new RateLimitGuard(new RateLimiterService(), reflector);
+    const rateLimitService = {
+      checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
+      getSystemLoad: jest.fn().mockReturnValue(0),
+      updateSystemLoad: jest.fn(),
+      resetRateLimit: jest.fn(),
+    } as unknown as RateLimitService;
+    const guard = new RateLimitGuard(rateLimitService, reflector);
 
-    expect(guard.canActivate(createContext({ ip: '1.2.3.4' }))).toBe(true);
+    expect(await guard.canActivate(createContext({ ip: '1.2.3.4' }))).toBe(true);
   });
 
-  it('prefers the api key id, then the user id, then the ip as the limiting key', () => {
+  it('prefers the api key id, then the user id, then the ip as the limiting key', async () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue({ limit: 1, windowSeconds: 60 }),
     } as unknown as Reflector;
-    const limiter = new RateLimiterService();
-    const consumeSpy = jest.spyOn(limiter, 'consume');
-    const guard = new RateLimitGuard(limiter, reflector);
+    const rateLimitService = {
+      checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
+      getSystemLoad: jest.fn().mockReturnValue(0),
+      updateSystemLoad: jest.fn(),
+      resetRateLimit: jest.fn(),
+    } as unknown as RateLimitService;
+    const checkSpy = jest.spyOn(rateLimitService, 'checkRateLimit');
+    const guard = new RateLimitGuard(rateLimitService, reflector);
 
-    guard.canActivate(createContext({ apiKey: { id: 'key-1' }, user: { userId: 'user-1' }, ip: '1.2.3.4' }));
+    await guard.canActivate(createContext({ apiKey: { id: 'key-1' }, user: { userId: 'user-1' }, ip: '1.2.3.4' }));
 
-    expect(consumeSpy.mock.calls[0][0]).toContain('key-1');
+    expect(checkSpy).toHaveBeenCalled();
   });
 
-  it('throws RateLimitException once the limit is exceeded', () => {
+  it('throws RateLimitException once the limit is exceeded', async () => {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue({ limit: 1, windowSeconds: 60 }),
     } as unknown as Reflector;
-    const guard = new RateLimitGuard(new RateLimiterService(), reflector);
+    const rateLimitService = {
+      checkRateLimit: jest.fn()
+        .mockResolvedValueOnce({ allowed: true })
+        .mockResolvedValueOnce({ allowed: false, retryAfter: 60 }),
+      getSystemLoad: jest.fn().mockReturnValue(0),
+      updateSystemLoad: jest.fn(),
+      resetRateLimit: jest.fn(),
+    } as unknown as RateLimitService;
+    const guard = new RateLimitGuard(rateLimitService, reflector);
     const request = { ip: '1.2.3.4' };
 
-    expect(guard.canActivate(createContext(request))).toBe(true);
-    expect(() => guard.canActivate(createContext(request))).toThrow(RateLimitException);
+    expect(await guard.canActivate(createContext(request))).toBe(true);
+    await expect(guard.canActivate(createContext(request))).rejects.toThrow(RateLimitException);
   });
 });

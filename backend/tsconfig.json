@@ -22,5 +22,11 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "exclude": ["**/*.e2e-spec.ts", "**/*.spec.ts"]
+  "exclude": [
+    "**/*.e2e-spec.ts",
+    "**/*.spec.ts",
+    "**/*.load-test.ts",
+    "**/*.chaos-test.ts",
+    "**/e2e/**"
+  ]
 }

@@ -1,0 +1,61 @@
+# AWS Route53 Failover Configuration
+# Configures DNS records with automatic failover
+
+# Primary DNS Record
+PrimaryDNSRecord:
+  Type: AWS::Route53::RecordSet
+  Properties:
+    HostedZoneId: "HOSTED_ZONE_ID"
+    Name: "api.lumina.io"
+    Type: A
+    AliasTarget:
+      HostedZoneId: "PRIMARY_LOAD_BALANCER_ZONE_ID"
+      DNSName: "PRIMARY_LOAD_BALANCER_DNS"
+      EvaluateTargetHealth: true
+    Failover: PRIMARY
+    SetIdentifier: "primary-region"
+    HealthCheckId: !Ref PrimaryRegionHealthCheck
+
+# DR DNS Record
+DRDNSRecord:
+  Type: AWS::Route53::RecordSet
+  Properties:
+    HostedZoneId: "HOSTED_ZONE_ID"
+    Name: "api.lumina.io"
+    Type: A
+    AliasTarget:
+      HostedZoneId: "DR_LOAD_BALANCER_ZONE_ID"
+      DNSName: "DR_LOAD_BALANCER_DNS"
+      EvaluateTargetHealth: true
+    Failover: SECONDARY
+    SetIdentifier: "dr-region"
+    HealthCheckId: !Ref DRRegionHealthCheck
+
+# Weighted Records for Gradual Traffic Shift
+PrimaryWeightedRecord:
+  Type: AWS::Route53::RecordSet
+  Properties:
+    HostedZoneId: "HOSTED_ZONE_ID"
+    Name: "api.lumina.io"
+    Type: A
+    AliasTarget:
+      HostedZoneId: "PRIMARY_LOAD_BALANCER_ZONE_ID"
+      DNSName: "PRIMARY_LOAD_BALANCER_DNS"
+      EvaluateTargetHealth: true
+    SetIdentifier: "primary-weighted"
+    Weight: 100
+    HealthCheckId: !Ref PrimaryRegionHealthCheck
+
+DRWeightedRecord:
+  Type: AWS::Route53::RecordSet
+  Properties:
+    HostedZoneId: "HOSTED_ZONE_ID"
+    Name: "api.lumina.io"
+    Type: A
+    AliasTarget:
+      HostedZoneId: "DR_LOAD_BALANCER_ZONE_ID"
+      DNSName: "DR_LOAD_BALANCER_DNS"
+      EvaluateTargetHealth: true
+    SetIdentifier: "dr-weighted"
+    Weight: 0
+    HealthCheckId: !Ref DRRegionHealthCheck

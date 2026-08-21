@@ -1,0 +1,264 @@
+{
+  "dashboard": {
+    "title": "Disaster Recovery - RTO/RPO Monitoring",
+    "uid": "dr-rto-rpo-dashboard",
+    "tags": ["disaster-recovery", "rto", "rpo"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "RPO - Replication Lag",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_replication_lag_seconds",
+            "legendFormat": "Replication Lag (s)"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Lag (seconds)"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [300],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "RPO - Backup Age",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "time() - postgres_backup_last_success_timestamp_seconds",
+            "legendFormat": "Backup Age"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 7200
+                },
+                {
+                  "color": "red",
+                  "value": 14400
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "RTO - Failover Duration",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "failover_duration_seconds",
+            "legendFormat": "Failover Duration"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 600
+                },
+                {
+                  "color": "red",
+                  "value": 900
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Region Health Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "region_health{region=\"us-east-1\"}",
+            "legendFormat": "Primary Region"
+          },
+          {
+            "expr": "region_health{region=\"eu-west-1\"}",
+            "legendFormat": "DR Region"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": {
+                    "color": "red",
+                    "text": "Unhealthy"
+                  },
+                  "1": {
+                    "color": "green",
+                    "text": "Healthy"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Data Consistency Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "data_consistency_score",
+            "legendFormat": "Consistency Score"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.95
+                },
+                {
+                  "color": "green",
+                  "value": 0.99
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Service Recovery Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "service_recovery_duration_seconds",
+            "legendFormat": "Recovery Duration (s)"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration (seconds)"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Backup Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(postgres_backup_success[1h])",
+            "legendFormat": "Backup Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "from": 0,
+                  "result": {
+                    "color": "red"
+                  },
+                  "to": 0.9
+                },
+                {
+                  "from": 0.9,
+                  "result": {
+                    "color": "yellow"
+                  },
+                  "to": 0.95
+                },
+                {
+                  "from": 0.95,
+                  "result": {
+                    "color": "green"
+                  },
+                  "to": 1
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "RTO/RPO Summary",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "",
+            "legendFormat": ""
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "Time": "Timestamp",
+                "Value": "Current"
+              }
+            }
+          }
+        ],
+        "datasource": null,
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        },
+        "options": {}
+      }
+    ]
+  }
+}

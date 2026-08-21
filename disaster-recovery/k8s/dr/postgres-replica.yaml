@@ -1,0 +1,183 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-replica
+  namespace: lumina-dr
+spec:
+  serviceName: postgres-replica
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      role: replica
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: replica
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_USER
+          value: lumina
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: POSTGRES_DB
+          value: lumina
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_MASTER_HOST
+          value: postgres-master.lumina-primary.svc.cluster.local
+        - name: POSTGRES_MASTER_PORT
+          value: "5432"
+        - name: POSTGRES_REPLICATION_USER
+          value: replicator
+        - name: POSTGRES_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: replication-script
+          mountPath: /docker-entrypoint-initdb.d/setup-replication.sh
+          subPath: setup-replication.sh
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - lumina
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - lumina
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+      - name: replication-script
+        configMap:
+          name: replication-script
+          defaultMode: 0755
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 100Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica
+  namespace: lumina-dr
+spec:
+  selector:
+    app: postgres
+    role: replica
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: lumina-dr
+data:
+  postgresql.conf: |
+    max_connections = 200
+    shared_buffers = 512MB
+    effective_cache_size = 2GB
+    maintenance_work_mem = 128MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 2621kB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    
+    # Hot standby (replica) settings
+    hot_standby = on
+    max_standby_streaming_delay = 30s
+    hot_standby_feedback = on
+    
+    # Logging
+    logging_collector = on
+    log_directory = 'log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_statement = 'all'
+    log_duration = on
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: replication-script
+  namespace: lumina-dr
+data:
+  setup-replication.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Wait for master to be ready
+    until pg_isready -h $POSTGRES_MASTER_HOST -p $POSTGRES_MASTER_PORT -U $POSTGRES_REPLICATION_USER; do
+      echo "Waiting for master database..."
+      sleep 2
+    done
+    
+    # Stop PostgreSQL
+    pg_ctl stop -D /var/lib/postgresql/data/pgdata -m fast
+    
+    # Clean existing data
+    rm -rf /var/lib/postgresql/data/pgdata/*
+    
+    # Perform base backup from master
+    PGPASSWORD=$POSTGRES_REPLICATION_PASSWORD pg_basebackup \
+      -h $POSTGRES_MASTER_HOST \
+      -p $POSTGRES_MASTER_PORT \
+      -D /var/lib/postgresql/data/pgdata \
+      -U $POSTGRES_REPLICATION_USER \
+      -P \
+      -v \
+      -R \
+      -X stream \
+      -C \
+      -S replica1
+    
+    # Create standby signal
+    touch /var/lib/postgresql/data/pgdata/standby.signal
+    
+    # Start PostgreSQL in replica mode
+    pg_ctl start -D /var/lib/postgresql/data/pgdata -l /var/lib/postgresql/data/log/postgresql-replica.log

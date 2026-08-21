@@ -1,0 +1,163 @@
+groups:
+  - name: rto_rpo_alerts
+    interval: 30s
+    rules:
+      # RPO Alerts - Recovery Point Objective
+      - alert: HighReplicationLag
+        expr: pg_replication_lag_seconds > 300
+        for: 2m
+        labels:
+          severity: warning
+          category: rpo
+        annotations:
+          summary: "PostgreSQL replication lag exceeds RPO threshold"
+          description: "Replication lag is {{ $value }}s, exceeding RPO target of 300s (5 minutes)"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/02-database-recovery.md"
+
+      - alert: CriticalReplicationLag
+        expr: pg_replication_lag_seconds > 600
+        for: 1m
+        labels:
+          severity: critical
+          category: rpo
+        annotations:
+          summary: "PostgreSQL replication lag critically high"
+          description: "Replication lag is {{ $value }}s, significantly exceeding RPO target"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/02-database-recovery.md"
+
+      - alert: BackupAgeExceeded
+        expr: time() - postgres_backup_last_success_timestamp_seconds > 14400
+        for: 5m
+        labels:
+          severity: warning
+          category: rpo
+        annotations:
+          summary: "PostgreSQL backup age exceeds RPO threshold"
+          description: "Last successful backup was {{ $value | humanizeDuration }} ago, exceeding RPO target of 4 hours"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/02-database-recovery.md"
+
+      # RTO Alerts - Recovery Time Objective
+      - alert: FailoverDurationExceeded
+        expr: failover_duration_seconds > 900
+        for: 1m
+        labels:
+          severity: critical
+          category: rto
+        annotations:
+          summary: "Failover duration exceeds RTO threshold"
+          description: "Current failover duration is {{ $value | humanizeDuration }}, exceeding RTO target of 15 minutes"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/01-region-failover.md"
+
+      - alert: ServiceRecoverySlow
+        expr: service_recovery_duration_seconds > 600
+        for: 2m
+        labels:
+          severity: warning
+          category: rto
+        annotations:
+          summary: "Service recovery is slower than expected"
+          description: "Service recovery duration is {{ $value | humanizeDuration }}, approaching RTO target"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/01-region-failover.md"
+
+      # System Health Alerts
+      - alert: PrimaryRegionUnhealthy
+        expr: region_health{region="us-east-1"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Primary region is unhealthy"
+          description: "Primary region (us-east-1) health checks are failing"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/01-region-failover.md"
+
+      - alert: DRRegionUnhealthy
+        expr: region_health{region="eu-west-1"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "DR region is unhealthy"
+          description: "DR region (eu-west-1) health checks are failing"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/01-region-failover.md"
+
+      - alert: BothRegionsUnhealthy
+        expr: count(region_health == 0) == 2
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Both primary and DR regions are unhealthy"
+          description: "Critical: Both regions are experiencing health issues"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/01-region-failover.md"
+
+      # Data Consistency Alerts
+      - alert: DataInconsistencyDetected
+        expr: data_consistency_score < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          category: data
+        annotations:
+          summary: "Data consistency score below threshold"
+          description: "Data consistency score is {{ $value }}, below threshold of 0.95"
+          runbook: "https://docs.lumina.io/disaster-recovery/scripts/verify-data-consistency.sh"
+
+      - alert: DataReconciliationNeeded
+        expr: data_discrepancy_count > 0
+        for: 10m
+        labels:
+          severity: warning
+          category: data
+        annotations:
+          summary: "Data discrepancies detected between regions"
+          description: "{{ $value }} data discrepancies detected between primary and DR regions"
+          runbook: "https://docs.lumina.io/disaster-recovery/scripts/data-reconciliation.sh"
+
+      # Backup Alerts
+      - alert: BackupFailed
+        expr: postgres_backup_success == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: backup
+        annotations:
+          summary: "PostgreSQL backup failed"
+          description: "Last PostgreSQL backup attempt failed"
+          runbook: "https://docs.lumina.io/disaster-recovery/scripts/verify-backup.sh"
+
+      - alert: BackupVerificationFailed
+        expr: backup_verification_success == 0
+        for: 10m
+        labels:
+          severity: warning
+          category: backup
+        annotations:
+          summary: "Backup verification failed"
+          description: "Backup integrity verification failed"
+          runbook: "https://docs.lumina.io/disaster-recovery/scripts/verify-backup.sh"
+
+      # Performance Alerts
+      - alert: HighLatencyDuringFailover
+        expr: http_request_duration_seconds{quantile="0.95"} > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High latency during failover"
+          description: "P95 latency is {{ $value }}s during failover operations"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/05-service-degradation.md"
+
+      - alert: ErrorRateSpike
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Error rate spike detected"
+          description: "Error rate is {{ $value | humanizePercentage }}, exceeding 5% threshold"
+          runbook: "https://docs.lumina.io/disaster-recovery/runbooks/05-service-degradation.md"

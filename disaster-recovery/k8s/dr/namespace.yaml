@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lumina-dr
+  labels:
+    environment: production
+    region: eu-west-1
+    role: disaster-recovery

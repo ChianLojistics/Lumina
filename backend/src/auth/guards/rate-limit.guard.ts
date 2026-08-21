@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RateLimiterService } from '../services/rate-limiter.service';
+import { RateLimitService } from '../../rate-limit/services/rate-limit.service';
 import { RATE_LIMIT_KEY, RateLimitOptions } from '../decorators/rate-limit.decorator';
 import { AuthenticatedRequest } from '../interfaces/jwt-payload.interface';
 import { RateLimitException } from '../../common/exceptions';
@@ -8,11 +8,11 @@ import { RateLimitException } from '../../common/exceptions';
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   constructor(
-    private readonly rateLimiter: RateLimiterService,
+    private readonly rateLimitService: RateLimitService,
     private readonly reflector: Reflector,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const options = this.reflector.getAllAndOverride<RateLimitOptions>(RATE_LIMIT_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -23,14 +23,27 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const routeId = `${context.getClass().name}.${context.getHandler().name}`;
-    const identifier = request.apiKey?.id || request.user?.userId || request.ip;
-    const key = `${routeId}:${identifier}`;
+    const endpoint = this.getEndpoint(context);
+    
+    const rateLimitContext = {
+      userId: request.user?.userId,
+      userTier: request.user?.tier,
+      ipAddress: request.ip,
+      endpoint: endpoint,
+      isAdmin: request.user?.isAdmin || false,
+    };
 
-    if (!this.rateLimiter.consume(key, options.limit, options.windowSeconds)) {
-      throw new RateLimitException(options.windowSeconds);
+    const result = await this.rateLimitService.checkRateLimit(rateLimitContext);
+
+    if (!result.allowed) {
+      throw new RateLimitException(result.retryAfter || 60);
     }
 
     return true;
+  }
+
+  private getEndpoint(context: ExecutionContext): string {
+    const request = context.switchToHttp().getRequest();
+    return request.route?.path || request.path || 'unknown';
   }
 }

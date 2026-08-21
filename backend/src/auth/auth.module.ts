@@ -9,7 +9,6 @@ import { AuthService } from './auth.service';
 import { TokenService } from './services/token.service';
 import { ApiKeyService } from './services/api-key.service';
 import { TwoFactorService } from './services/two-factor.service';
-import { RateLimiterService } from './services/rate-limiter.service';
 import { AuthMailerService } from './services/auth-mailer.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
@@ -23,6 +22,7 @@ import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { TokenBlacklist } from './entities/token-blacklist.entity';
 import { ApiKey } from './entities/api-key.entity';
+import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
   imports: [
@@ -34,6 +34,7 @@ import { ApiKey } from './entities/api-key.entity';
         expiresIn: (process.env.JWT_ACCESS_EXPIRY || '15m') as SignOptions['expiresIn'],
       },
     }),
+    RateLimitModule,
   ],
   controllers: [AuthController, ApiKeyController],
   providers: [
@@ -41,7 +42,6 @@ import { ApiKey } from './entities/api-key.entity';
     TokenService,
     ApiKeyService,
     TwoFactorService,
-    RateLimiterService,
     AuthMailerService,
     JwtStrategy,
     JwtRefreshStrategy,

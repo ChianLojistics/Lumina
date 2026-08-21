@@ -1,0 +1,43 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: simulate-primary-failure
+  namespace: lumina-primary
+spec:
+  action: pod-kill
+  mode: all
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  duration: "5m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: simulate-database-failure
+  namespace: lumina-primary
+spec:
+  action: pod-failure
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: postgres
+  duration: "5m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: simulate-network-partition
+  namespace: lumina-primary
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - lumina-primary
+  direction: both
+  duration: "3m"
