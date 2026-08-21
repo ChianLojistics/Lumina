@@ -41,7 +41,8 @@ app.post('/failover/trigger', async (req, res) => {
     await failoverManager.triggerFailover('manual');
     res.json({ status: 'success', message: 'Failover triggered successfully' });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ status: 'error', message: errorMessage });
   }
 });
 
@@ -51,7 +52,8 @@ app.post('/failover/failback', async (req, res) => {
     await failoverManager.triggerFailback();
     res.json({ status: 'success', message: 'Failback triggered successfully' });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ status: 'error', message: errorMessage });
   }
 });
 
@@ -102,11 +104,12 @@ async function healthCheckLoop() {
       }
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in health check loop:', error);
     await notificationService.sendAlert(
       'ERROR',
       'Health Check Error',
-      `Error in health check loop: ${error.message}`
+      `Error in health check loop: ${errorMessage}`
     );
   }
 }

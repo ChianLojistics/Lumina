@@ -80,13 +80,18 @@ export class FailoverManager {
 
   private async updateDNSRecords(target: 'primary' | 'dr'): Promise<void> {
     const hostedZoneId = process.env.HOSTED_ZONE_ID;
+    if (!hostedZoneId) {
+      throw new Error('HOSTED_ZONE_ID environment variable is not set');
+    }
+    
     const primaryWeight = target === 'primary' ? 100 : 0;
     const drWeight = target === 'dr' ? 100 : 0;
 
     // Update primary record weight
-    await this.route53.changeResourceRecordSets({
+    const params1: AWS.Route53.ChangeResourceRecordSetsRequest = {
       HostedZoneId: hostedZoneId,
       ChangeBatch: {
+        Comment: 'Update primary record weight during failover',
         Changes: [{
           Action: 'UPSERT',
           ResourceRecordSet: {
@@ -95,19 +100,21 @@ export class FailoverManager {
             SetIdentifier: 'primary-weighted',
             Weight: primaryWeight,
             AliasTarget: {
-              HostedZoneId: process.env.PRIMARY_LB_ZONE_ID,
-              DNSName: process.env.PRIMARY_LB_DNS,
+              HostedZoneId: process.env.PRIMARY_LB_ZONE_ID || '',
+              DNSName: process.env.PRIMARY_LB_DNS || '',
               EvaluateTargetHealth: true,
             },
           },
         }],
       },
-    }).promise();
+    };
+    await this.route53.changeResourceRecordSets(params1).promise();
 
     // Update DR record weight
-    await this.route53.changeResourceRecordSets({
+    const params2: AWS.Route53.ChangeResourceRecordSetsRequest = {
       HostedZoneId: hostedZoneId,
       ChangeBatch: {
+        Comment: 'Update DR record weight during failover',
         Changes: [{
           Action: 'UPSERT',
           ResourceRecordSet: {
@@ -116,14 +123,15 @@ export class FailoverManager {
             SetIdentifier: 'dr-weighted',
             Weight: drWeight,
             AliasTarget: {
-              HostedZoneId: process.env.DR_LB_ZONE_ID,
-              DNSName: process.env.DR_LB_DNS,
+              HostedZoneId: process.env.DR_LB_ZONE_ID || '',
+              DNSName: process.env.DR_LB_DNS || '',
               EvaluateTargetHealth: true,
             },
           },
         }],
       },
-    }).promise();
+    };
+    await this.route53.changeResourceRecordSets(params2).promise();
   }
 
   getStatus(): FailoverStatus {

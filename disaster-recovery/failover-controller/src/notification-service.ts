@@ -46,7 +46,7 @@ export class NotificationService {
   private async sendSlackAlert(level: string, title: string, message: string): Promise<void> {
     if (!this.slackWebhookUrl) return;
 
-    const colors = {
+    const colors: Record<string, string> = {
       INFO: '#36a64f',
       WARNING: '#ff9900',
       ERROR: '#ff0000',
