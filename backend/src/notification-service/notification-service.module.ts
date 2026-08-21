@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { NotificationServiceController, EmailNotificationController } from './notification-service.controller';
+import { NotificationServiceController } from './notification-service.controller';
 import { NotificationServiceService } from './notification-service.service';
 import { WebhookService } from './webhook/webhook.service';
 import { EmailService } from './email/email.service';
@@ -17,7 +17,7 @@ import { MetricsModule } from '../common/metrics/metrics.module';
     TypeOrmModule.forFeature([Webhook, WebhookDelivery, WebhookDLQ, Merchant]),
     MetricsModule,
   ],
-  controllers: [NotificationServiceController, EmailNotificationController],
+  controllers: [NotificationServiceController],
   providers: [
     NotificationServiceService,
     WebhookService,
