@@ -1,0 +1,200 @@
+{
+  "uid": "lumina-capacity-planning",
+  "title": "Capacity Planning",
+  "tags": ["lumina", "capacity", "forecasting"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Resource Utilization",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["last"] },
+        "displayMode": "gradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "orange", "value": 0.8 },
+              { "color": "red", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "capacity_utilization_ratio",
+          "legendFormat": "{{resource}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Hours Until Capacity Limit",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "reduceOptions": { "calcs": ["last"] }, "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 4 },
+              { "color": "yellow", "value": 48 },
+              { "color": "green", "value": 168 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "capacity_forecast_hours_until_limit",
+          "legendFormat": "{{resource}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Resource Utilization Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": { "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "capacity_utilization_ratio",
+          "legendFormat": "{{resource}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Capacity Forecast Horizon Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": { "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "capacity_forecast_hours_until_limit",
+          "legendFormat": "{{resource}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "DB Connection Pool Trend",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "db_pool_total_connections", "legendFormat": "total", "refId": "A" },
+        { "expr": "db_pool_idle_connections", "legendFormat": "idle", "refId": "B" },
+        { "expr": "db_pool_waiting_requests", "legendFormat": "waiting", "refId": "C" },
+        {
+          "expr": "predict_linear(db_pool_total_connections[1h], 3600 * 24)",
+          "legendFormat": "forecast +24h",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "HTTP Request Rate Trend",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m]))",
+          "legendFormat": "current rate",
+          "refId": "A"
+        },
+        {
+          "expr": "predict_linear(sum(rate(http_requests_total[5m]))[1h:5m], 3600 * 24)",
+          "legendFormat": "forecast +24h",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Blockchain Transaction Volume Trend",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(blockchain_tx_total[5m])) by (network)",
+          "legendFormat": "{{network}}",
+          "refId": "A"
+        },
+        {
+          "expr": "predict_linear(sum(rate(blockchain_tx_total[5m]))[1h:5m], 3600 * 24)",
+          "legendFormat": "forecast +24h",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Blockchain Tx Latency Trend",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(blockchain_tx_duration_seconds_bucket[10m])) by (le, network))",
+          "legendFormat": "p95 {{network}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(blockchain_tx_duration_seconds_bucket[10m])) by (le, network))",
+          "legendFormat": "p99 {{network}}",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

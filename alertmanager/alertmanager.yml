@@ -35,6 +35,21 @@ route:
       group_wait: 10s
       repeat_interval: 1h
 
+    # SLA budget alerts get their own channel and shorter repeat interval.
+    - match_re:
+        alertname: "^Sla.*"
+      receiver: slack-sla
+      group_wait: 30s
+      repeat_interval: 2h
+      continue: true
+
+    # Capacity alerts warn early with longer repeat interval (not urgent pages).
+    - match_re:
+        alertname: "^Capacity.*"
+      receiver: slack-capacity
+      group_wait: 1m
+      repeat_interval: 6h
+
     - match:
         severity: warning
       receiver: slack-default
@@ -70,3 +85,17 @@ receivers:
     email_configs:
       - to: 'oncall@lumina.dev'
         send_resolved: true
+
+  - name: slack-sla
+    slack_configs:
+      - channel: '#lumina-sla'
+        send_resolved: true
+        title: ':chart_with_downwards_trend: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
+
+  - name: slack-capacity
+    slack_configs:
+      - channel: '#lumina-capacity'
+        send_resolved: true
+        title: ':bar_chart: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
