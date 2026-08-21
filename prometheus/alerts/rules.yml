@@ -32,6 +32,21 @@ groups:
             p95 HTTP request latency on {{ $labels.service }} has been above 2s
             for 5 minutes (current value: {{ $value | humanizeDuration }}).
 
+      - alert: CriticalLatency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 5
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical p99 latency on {{ $labels.service }}"
+          description: >-
+            p99 HTTP request latency on {{ $labels.service }} exceeds 5s
+            (current value: {{ $value | humanizeDuration }}).
+
   - name: lumina-database
     rules:
       - alert: DatabaseConnectionPoolExhausted
@@ -47,7 +62,32 @@ groups:
           description: >-
             The backend's Postgres connection pool has queries waiting for a
             free connection, or has zero idle connections, for 5 minutes.
-            total={{ $labels.service }} waiting={{ $value }}.
+
+      - alert: HighDatabaseQueryLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High DB p95 query latency for {{ $labels.operation }}"
+          description: >-
+            p95 database query latency for {{ $labels.operation }} exceeds 1s
+            (current value: {{ $value | humanizeDuration }}).
+
+      - alert: DatabaseQueryErrorSpike
+        expr: |
+          sum(rate(db_query_errors_total[5m])) > 1
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database query error spike"
+          description: >-
+            More than 1 database error per second has been recorded for 3 minutes.
 
   - name: lumina-queues
     rules:
@@ -74,3 +114,160 @@ groups:
           description: >-
             Prometheus has failed to scrape {{ $labels.job }} ({{ $labels.instance }})
             for 1 minute; its health check is failing.
+
+  - name: lumina-blockchain
+    rules:
+      - alert: HighBlockchainTxLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(blockchain_tx_duration_seconds_bucket[10m])) by (le, network, operation)
+          ) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High blockchain tx p95 latency on {{ $labels.network }}"
+          description: >-
+            Blockchain transaction p95 latency for {{ $labels.operation }} on
+            {{ $labels.network }} has been above 60s for 5 minutes
+            (current value: {{ $value | humanizeDuration }}).
+
+      - alert: BlockchainTxErrorRate
+        expr: |
+          (
+            sum(rate(blockchain_tx_total{status="error"}[10m])) by (network)
+            /
+            sum(rate(blockchain_tx_total[10m])) by (network)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High blockchain tx error rate on {{ $labels.network }}"
+          description: >-
+            More than 10% of blockchain transactions on {{ $labels.network }}
+            are failing (current value: {{ $value | humanizePercentage }}).
+
+  - name: lumina-sla
+    rules:
+      - alert: SlaErrorBudgetBurning
+        expr: sla_error_budget_remaining_ratio < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SLA {{ $labels.sla }} error budget 50% consumed"
+          description: >-
+            The 30-day error budget for SLA "{{ $labels.sla }}" is more than 50%
+            consumed (remaining: {{ $value | humanizePercentage }}).
+
+      - alert: SlaErrorBudgetCritical
+        expr: sla_error_budget_remaining_ratio < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLA {{ $labels.sla }} error budget nearly exhausted"
+          description: >-
+            The 30-day error budget for SLA "{{ $labels.sla }}" has less than 10%
+            remaining (remaining: {{ $value | humanizePercentage }}).
+
+      - alert: SlaComplianceBelowTarget
+        expr: sla_compliance_ratio < 0.999
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLA compliance below target for {{ $labels.sla }}"
+          description: >-
+            Current rolling compliance for {{ $labels.sla }} is
+            {{ $value | humanizePercentage }}, below the 99.9% target.
+
+  - name: lumina-anomaly
+    rules:
+      - alert: AnomalyDetected
+        expr: anomaly_score > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Anomaly detected in {{ $labels.metric }}"
+          description: >-
+            Statistical anomaly (z-score={{ $value | humanize }}) detected in
+            metric "{{ $labels.metric }}" dimension "{{ $labels.dimension }}".
+
+      - alert: SevereAnomalyDetected
+        expr: anomaly_score > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Severe anomaly in {{ $labels.metric }}"
+          description: >-
+            Severe statistical anomaly (z-score={{ $value | humanize }}) detected in
+            metric "{{ $labels.metric }}" dimension "{{ $labels.dimension }}".
+
+  - name: lumina-synthetic
+    rules:
+      - alert: SyntheticProbeFailure
+        expr: synthetic_probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Synthetic probe {{ $labels.probe }} failing"
+          description: >-
+            Synthetic probe "{{ $labels.probe }}" for endpoint {{ $labels.endpoint }}
+            has been failing for 2 minutes.
+
+      - alert: SyntheticProbeSlowResponse
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(synthetic_probe_duration_seconds_bucket[5m])) by (le, probe, endpoint)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Synthetic probe {{ $labels.probe }} responding slowly"
+          description: >-
+            Synthetic probe "{{ $labels.probe }}" p95 response time is
+            {{ $value | humanizeDuration }}, above the 2s threshold.
+
+  - name: lumina-capacity
+    rules:
+      - alert: CapacityLimitApproaching
+        expr: capacity_forecast_hours_until_limit < 48
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.resource }} capacity limit in < 48h"
+          description: >-
+            At the current growth rate, resource "{{ $labels.resource }}" is
+            forecasted to hit its capacity limit in
+            {{ $value | humanizeDuration }}.
+
+      - alert: CapacityLimitImminent
+        expr: capacity_forecast_hours_until_limit < 4
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.resource }} capacity limit imminent (< 4h)"
+          description: >-
+            Resource "{{ $labels.resource }}" will hit capacity in approximately
+            {{ $value | humanizeDuration }} at the current growth rate.
+
+      - alert: HighResourceUtilization
+        expr: capacity_utilization_ratio > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.resource }} utilization above 80%"
+          description: >-
+            Resource "{{ $labels.resource }}" utilization is at
+            {{ $value | humanizePercentage }}, above the 80% threshold.

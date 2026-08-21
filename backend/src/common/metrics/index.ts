@@ -3,3 +3,7 @@ export * from './metrics.module';
 export * from './http-metrics.interceptor';
 export * from './typeorm-metrics.logger';
 export * from './db-pool-metrics.service';
+export * from './anomaly-detection.service';
+export * from './sla-monitoring.service';
+export * from './synthetic-monitoring.service';
+export * from './capacity-planning.service';

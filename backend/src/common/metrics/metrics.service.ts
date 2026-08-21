@@ -34,6 +34,28 @@ export class MetricsService {
   readonly dbPoolIdleConnections: client.Gauge<string>;
   readonly dbPoolWaitingRequests: client.Gauge<string>;
 
+  // Blockchain transaction metrics
+  readonly blockchainTxDuration: client.Histogram<string>;
+  readonly blockchainTxTotal: client.Counter<string>;
+
+  // SLA monitoring gauges
+  readonly slaComplianceRatio: client.Gauge<string>;
+  readonly slaErrorBudgetRemaining: client.Gauge<string>;
+  readonly slaViolationsTotal: client.Counter<string>;
+
+  // Anomaly detection gauges
+  readonly anomalyScore: client.Gauge<string>;
+  readonly anomaliesDetectedTotal: client.Counter<string>;
+
+  // Synthetic monitoring
+  readonly syntheticProbeSuccess: client.Gauge<string>;
+  readonly syntheticProbeDuration: client.Histogram<string>;
+  readonly syntheticProbeTotal: client.Counter<string>;
+
+  // Capacity planning
+  readonly capacityUtilization: client.Gauge<string>;
+  readonly capacityForecastHours: client.Gauge<string>;
+
   constructor() {
     this.registry = new client.Registry();
     this.registry.setDefaultLabels({ service: 'lumina-backend' });
@@ -151,6 +173,92 @@ export class MetricsService {
       help: 'Number of queries waiting for a free connection in the database pool',
       registers: [this.registry],
     });
+
+    this.blockchainTxDuration = new client.Histogram({
+      name: 'blockchain_tx_duration_seconds',
+      help: 'Duration of blockchain transactions in seconds',
+      labelNames: ['network', 'operation'],
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60, 120],
+      registers: [this.registry],
+    });
+
+    this.blockchainTxTotal = new client.Counter({
+      name: 'blockchain_tx_total',
+      help: 'Total number of blockchain transactions',
+      labelNames: ['network', 'operation', 'status'],
+      registers: [this.registry],
+    });
+
+    this.slaComplianceRatio = new client.Gauge({
+      name: 'sla_compliance_ratio',
+      help: 'Current SLA compliance ratio (0-1) over the rolling window',
+      labelNames: ['sla', 'window'],
+      registers: [this.registry],
+    });
+
+    this.slaErrorBudgetRemaining = new client.Gauge({
+      name: 'sla_error_budget_remaining_ratio',
+      help: 'Remaining error budget as a fraction of total (0-1)',
+      labelNames: ['sla'],
+      registers: [this.registry],
+    });
+
+    this.slaViolationsTotal = new client.Counter({
+      name: 'sla_violations_total',
+      help: 'Total number of SLA violations detected',
+      labelNames: ['sla', 'type'],
+      registers: [this.registry],
+    });
+
+    this.anomalyScore = new client.Gauge({
+      name: 'anomaly_score',
+      help: 'Statistical anomaly score (z-score) for a given metric series',
+      labelNames: ['metric', 'dimension'],
+      registers: [this.registry],
+    });
+
+    this.anomaliesDetectedTotal = new client.Counter({
+      name: 'anomalies_detected_total',
+      help: 'Total number of anomalies detected across all series',
+      labelNames: ['metric', 'severity'],
+      registers: [this.registry],
+    });
+
+    this.syntheticProbeSuccess = new client.Gauge({
+      name: 'synthetic_probe_success',
+      help: '1 if the synthetic probe succeeded, 0 if it failed',
+      labelNames: ['probe', 'endpoint'],
+      registers: [this.registry],
+    });
+
+    this.syntheticProbeDuration = new client.Histogram({
+      name: 'synthetic_probe_duration_seconds',
+      help: 'Duration of synthetic health probes in seconds',
+      labelNames: ['probe', 'endpoint'],
+      buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+      registers: [this.registry],
+    });
+
+    this.syntheticProbeTotal = new client.Counter({
+      name: 'synthetic_probe_total',
+      help: 'Total number of synthetic probes executed',
+      labelNames: ['probe', 'endpoint', 'status'],
+      registers: [this.registry],
+    });
+
+    this.capacityUtilization = new client.Gauge({
+      name: 'capacity_utilization_ratio',
+      help: 'Current utilization as a fraction of estimated capacity (0-1)',
+      labelNames: ['resource'],
+      registers: [this.registry],
+    });
+
+    this.capacityForecastHours = new client.Gauge({
+      name: 'capacity_forecast_hours_until_limit',
+      help: 'Estimated hours until the resource hits capacity limit at current growth rate',
+      labelNames: ['resource'],
+      registers: [this.registry],
+    });
   }
 
   /** Times an external service call and records success/error counters + latency. */
@@ -200,6 +308,11 @@ export class MetricsService {
     this.dbPoolTotalConnections.set(stats.total);
     this.dbPoolIdleConnections.set(stats.idle);
     this.dbPoolWaitingRequests.set(stats.waiting);
+  }
+
+  recordBlockchainTx(network: string, operation: string, status: string, durationSeconds: number): void {
+    this.blockchainTxDuration.observe({ network, operation }, durationSeconds);
+    this.blockchainTxTotal.inc({ network, operation, status });
   }
 
   async getMetrics(): Promise<string> {
