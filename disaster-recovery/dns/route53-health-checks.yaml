@@ -1,0 +1,58 @@
+# AWS Route53 Health Checks Configuration
+# These health checks monitor the availability of each region
+
+# Primary Region Health Check
+PrimaryRegionHealthCheck:
+  Type: AWS::Route53::HealthCheck
+  Properties:
+    HealthCheckConfig:
+      IPAddress: "PRIMARY_LOAD_BALANCER_IP"
+      Port: 443
+      Type: HTTPS
+      ResourcePath: "/health"
+      RequestInterval: 30
+      FailureThreshold: 3
+    HealthCheckTags:
+      - Key: Environment
+        Value: production
+      - Key: Region
+        Value: us-east-1
+      - Key: Role
+        Value: primary
+
+# DR Region Health Check
+DRRegionHealthCheck:
+  Type: AWS::Route53::HealthCheck
+  Properties:
+    HealthCheckConfig:
+      IPAddress: "DR_LOAD_BALANCER_IP"
+      Port: 443
+      Type: HTTPS
+      ResourcePath: "/health"
+      RequestInterval: 30
+      FailureThreshold: 3
+    HealthCheckTags:
+      - Key: Environment
+        Value: production
+      - Key: Region
+        Value: eu-west-1
+      - Key: Role
+        Value: disaster-recovery
+
+# Database Health Check (Primary)
+PrimaryDBHealthCheck:
+  Type: AWS::Route53::HealthCheck
+  Properties:
+    HealthCheckConfig:
+      IPAddress: "PRIMARY_DB_IP"
+      Port: 5432
+      Type: TCP
+      RequestInterval: 30
+      FailureThreshold: 3
+    HealthCheckTags:
+      - Key: Environment
+        Value: production
+      - Key: Service
+        Value: postgres
+      - Key: Region
+        Value: us-east-1

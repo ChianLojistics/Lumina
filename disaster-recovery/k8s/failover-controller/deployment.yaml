@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: failover-controller
+  namespace: lumina-primary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: failover-controller
+  template:
+    metadata:
+      labels:
+        app: failover-controller
+    spec:
+      containers:
+      - name: failover-controller
+        image: failover-controller:latest
+        imagePullPolicy: Always
+        env:
+        - name: PRIMARY_REGION
+          value: us-east-1
+        - name: DR_REGION
+          value: eu-west-1
+        - name: DNS_PROVIDER
+          value: route53
+        - name: HOSTED_ZONE_ID
+          valueFrom:
+            configMapKeyRef:
+              name: failover-config
+              key: hosted-zone-id
+        - name: PRIMARY_HC_ID
+          valueFrom:
+            configMapKeyRef:
+              name: failover-config
+              key: primary-hc-id
+        - name: DR_HC_ID
+          valueFrom:
+            configMapKeyRef:
+              name: failover-config
+              key: dr-hc-id
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: notification-credentials
+              key: slack-webhook-url
+        - name: PAGERDUTY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: notification-credentials
+              key: pagerduty-api-key
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: failover-controller
+  namespace: lumina-primary
+spec:
+  selector:
+    app: failover-controller
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: failover-config
+  namespace: lumina-primary
+data:
+  hosted-zone-id: "YOUR_HOSTED_ZONE_ID"
+  primary-hc-id: "YOUR_PRIMARY_HEALTH_CHECK_ID"
+  dr-hc-id: "YOUR_DR_HEALTH_CHECK_ID"
+  failover-threshold: "3"
+  health-check-interval: "30"
+  auto-failover-enabled: "true"
+  failback-delay: "300"

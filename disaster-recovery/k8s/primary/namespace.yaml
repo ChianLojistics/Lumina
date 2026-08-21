@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lumina-primary
+  labels:
+    environment: production
+    region: us-east-1
+    role: primary
