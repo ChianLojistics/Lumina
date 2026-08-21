@@ -22,6 +22,8 @@ export interface AuthenticatedUser {
   merchantId?: string;
   jti: string;
   exp: number;
+  tier?: string;
+  isAdmin?: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {
