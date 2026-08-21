@@ -1,0 +1,113 @@
+# Cloudflare Load Balancing Configuration
+# Alternative DNS failover using Cloudflare
+
+name: lumina-api-load-balancer
+default_pools:
+  - primary-region
+fallback_pool: dr-region
+
+pools:
+  - name: primary-region
+    description: Primary region (US East)
+    origins:
+      - name: primary-origin-1
+        address: PRIMARY_ORIGIN_1_IP
+        enabled: true
+        weight: 1
+        healthcheck:
+          protocol: HTTPS
+          port: 443
+          path: /health
+          interval: 30
+          timeout: 5
+          retries: 3
+          expected_codes:
+            - 200
+      - name: primary-origin-2
+        address: PRIMARY_ORIGIN_2_IP
+        enabled: true
+        weight: 1
+        healthcheck:
+          protocol: HTTPS
+          port: 443
+          path: /health
+          interval: 30
+          timeout: 5
+          retries: 3
+          expected_codes:
+            - 200
+    monitor: lumina-health-monitor
+    check_regions:
+      - US_EAST
+      - US_WEST
+      - EU_WEST
+
+  - name: dr-region
+    description: Disaster recovery region (EU West)
+    origins:
+      - name: dr-origin-1
+        address: DR_ORIGIN_1_IP
+        enabled: true
+        weight: 1
+        healthcheck:
+          protocol: HTTPS
+          port: 443
+          path: /health
+          interval: 30
+          timeout: 5
+          retries: 3
+          expected_codes:
+            - 200
+      - name: dr-origin-2
+        address: DR_ORIGIN_2_IP
+        enabled: true
+        weight: 1
+        healthcheck:
+          protocol: HTTPS
+          port: 443
+          path: /health
+          interval: 30
+          timeout: 5
+          retries: 3
+          expected_codes:
+            - 200
+    monitor: lumina-health-monitor
+    check_regions:
+      - EU_WEST
+      - US_EAST
+
+monitors:
+  - name: lumina-health-monitor
+    description: Health check for Lumina API endpoints
+    type: https
+    path: /health
+    method: GET
+    expected_codes:
+      - 200
+    timeout: 5
+    interval: 30
+    retries: 3
+    allow_insecure: false
+    follow_redirects: true
+    description: "Lumina API health endpoint"
+
+rules:
+  - name: geo-routing
+    description: Route traffic based on geographic location
+    condition:
+      - name: geo
+        value:
+          - US
+          - CA
+    action:
+      type: pool
+      value: primary-region
+
+  - name: failover-rule
+    description: Automatic failover to DR region
+    condition:
+      - name: health
+        value: degraded
+    action:
+      type: pool
+      value: dr-region

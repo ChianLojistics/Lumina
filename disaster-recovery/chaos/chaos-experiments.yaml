@@ -1,0 +1,105 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-experiment
+  namespace: lumina-primary
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  duration: "30s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay-experiment
+  namespace: lumina-primary
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  delay:
+    latency: "200ms"
+    correlation: "25"
+    jitter: "50ms"
+  duration: "60s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-loss-experiment
+  namespace: lumina-primary
+spec:
+  action: loss
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  loss:
+    loss: "25"
+    correlation: "25"
+  duration: "60s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress-experiment
+  namespace: lumina-primary
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  stressors:
+    cpu:
+      workers: 4
+      load: 80
+  duration: "60s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: io-delay-experiment
+  namespace: lumina-primary
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: postgres
+  latency:
+    duration: "200ms"
+  volumePath: /var/lib/postgresql/data
+  duration: "60s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: dns-failure-experiment
+  namespace: lumina-primary
+spec:
+  action: random
+  mode: one
+  selector:
+    namespaces:
+      - lumina-primary
+    labelSelectors:
+      app: backend
+  patterns:
+    - "api.lumina.io"
+    - "postgres-master"
+  duration: "30s"
