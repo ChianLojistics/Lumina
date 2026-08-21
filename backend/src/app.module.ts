@@ -15,6 +15,7 @@ import { MetricsModule } from './common/metrics/metrics.module';
 import { DistributedLedgerModule } from './distributed-ledger/distributed-ledger.module';
 import { ZKPModule } from './zkp/zkp.module';
 import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
+import { CacheModule } from './cache/cache.module';
 import { MetricsService } from './common/metrics/metrics.service';
 import { TypeOrmMetricsLogger } from './common/metrics/typeorm-metrics.logger';
 import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
@@ -26,6 +27,7 @@ import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
     }),
     CommonModule,
     ScheduleModule.forRoot(),
+    CacheModule,
     TypeOrmModule.forRootAsync({
       imports: [MetricsModule],
       inject: [MetricsService],
