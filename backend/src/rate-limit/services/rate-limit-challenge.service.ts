@@ -172,7 +172,7 @@ export class RateLimitChallengeService {
 
   private validateCaptchaSolution(challengeData: any, solution: any): boolean {
     // In production, validate with the CAPTCHA provider
-    return solution.token && solution.token.length > 0;
+    return !!(solution.token && solution.token.length > 0);
   }
 
   private validateProofOfWorkSolution(challengeData: any, solution: any): boolean {

@@ -26,6 +26,7 @@
     "**/*.e2e-spec.ts",
     "**/*.spec.ts",
     "**/*.load-test.ts",
-    "**/*.chaos-test.ts"
+    "**/*.chaos-test.ts",
+    "**/e2e/**"
   ]
 }
