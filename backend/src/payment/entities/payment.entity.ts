@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 export enum PaymentStatus {
   PENDING = 'pending',
@@ -18,6 +18,10 @@ export enum PaymentCurrency {
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Index()
+  @Column({ nullable: true })
+  tenant_id: string;
 
   @Column({ unique: true })
   payment_id: string;
