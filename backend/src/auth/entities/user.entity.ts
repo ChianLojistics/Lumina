@@ -13,6 +13,10 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
+  @Column({ nullable: true })
+  tenant_id: string;
+
   @Index({ unique: true })
   @Column()
   email: string;
