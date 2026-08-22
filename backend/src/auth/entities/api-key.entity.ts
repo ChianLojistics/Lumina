@@ -7,6 +7,10 @@ export class ApiKey {
   id: string;
 
   @Index()
+  @Column({ nullable: true })
+  tenant_id: string;
+
+  @Index()
   @Column()
   merchant_id: string;
 
