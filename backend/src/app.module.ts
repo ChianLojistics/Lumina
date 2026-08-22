@@ -28,6 +28,7 @@ import { DbPoolMetricsService } from './common/metrics/db-pool-metrics.service';
     }),
     CommonModule,
     ScheduleModule.forRoot(),
+    CacheModule,
     TypeOrmModule.forRootAsync({
       imports: [MetricsModule],
       inject: [MetricsService],
