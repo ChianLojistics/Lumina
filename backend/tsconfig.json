@@ -30,6 +30,7 @@
     "**/*.spec.ts",
     "**/*.load-test.ts",
     "**/*.chaos-test.ts",
-    "**/e2e/**"
+    "**/e2e/**",
+    "scripts/**"
   ]
 }

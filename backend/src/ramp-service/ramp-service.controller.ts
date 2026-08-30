@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RampService } from './ramp-service.service';
 import { InitiateOnRampDto } from './dto/initiate-onramp.dto';
 import { InitiateOffRampDto } from './dto/initiate-offramp.dto';
@@ -6,6 +7,8 @@ import { WebhookDto } from './dto/webhook.dto';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { InitiateKycDto } from './dto/initiate-kyc.dto';
 
+@ApiTags('ramp')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/ramp')
 export class RampController {
   constructor(private readonly rampService: RampService) {}

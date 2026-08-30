@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Param, UseGuards, Logger } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ZKPProofService } from './services/zkp-proof.service';
 import { ZKPVerificationService } from './services/zkp-verification.service';
 import { PrivacyAuditService } from './services/privacy-audit.service';
@@ -14,6 +15,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 
+@ApiTags('zkp')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/zkp')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ZKPController {

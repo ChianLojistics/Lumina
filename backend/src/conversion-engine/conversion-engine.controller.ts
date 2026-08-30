@@ -1,9 +1,12 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ConversionEngineService } from './conversion-engine.service';
 import { GetRateDto } from './dto/get-rate.dto';
 import { EstimateConversionDto } from './dto/estimate-conversion.dto';
 import { ExecuteConversionDto } from './dto/execute-conversion.dto';
 
+@ApiTags('payments')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/conversion')
 export class ConversionEngineController {
   constructor(private readonly conversionEngineService: ConversionEngineService) {}

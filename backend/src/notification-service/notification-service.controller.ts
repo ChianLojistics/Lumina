@@ -10,12 +10,15 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationServiceService } from './notification-service.service';
 import { RegisterWebhookDto } from './webhook/dto/register-webhook.dto';
 import { UpdateWebhookDto } from './webhook/dto/update-webhook.dto';
 import { TestWebhookDto } from './webhook/dto/test-webhook.dto';
 import { SendEmailDto } from './email/dto/send-email.dto';
 
+@ApiTags('webhooks')
+@ApiBearerAuth('JWT-auth')
 @Controller(['api/webhooks', 'api/notifications'])
 export class NotificationServiceController {
   constructor(private readonly notificationService: NotificationServiceService) {}

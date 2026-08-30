@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { FraudDetectionService } from '../services/fraud-detection.service';
 import { RuleManagementService } from '../services/rule-management.service';
 import { RuleTestingService } from '../services/rule-testing.service';
@@ -20,6 +21,8 @@ import { RollbackRuleDto } from '../dto/rollback-rule.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 
+@ApiTags('fraud-detection')
+@ApiBearerAuth('JWT-auth')
 @Controller('fraud-detection')
 @UseGuards(JwtAuthGuard)
 export class FraudDetectionController {

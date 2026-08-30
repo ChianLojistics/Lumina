@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { LedgerService } from '../services/ledger.service';
 import { ReconciliationService } from '../services/reconciliation.service';
 import { WriteEntryDto } from '../dto/write-entry.dto';
@@ -15,6 +16,8 @@ import { QueryLedgerDto } from '../dto/query-ledger.dto';
 import { ReconcileDto } from '../dto/reconcile.dto';
 import { LedgerResponseDto, LedgerHealthResponseDto } from '../dto/ledger-response.dto';
 
+@ApiTags('ledger')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/ledger')
 export class LedgerController {
   constructor(

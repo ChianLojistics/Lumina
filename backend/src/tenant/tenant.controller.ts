@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantService } from './tenant.service';
 import { TenantOnboardingService } from './services/tenant-onboarding.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -23,6 +24,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 
+@ApiTags('tenant')
+@ApiBearerAuth('JWT-auth')
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantController {

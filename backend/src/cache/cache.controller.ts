@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CacheService } from './services/cache.service';
 import { CacheMonitoringService } from './services/cache-monitoring.service';
 import { CacheWarmupService } from './services/cache-warmup.service';
@@ -6,6 +7,8 @@ import { PredictiveCacheService } from './services/predictive-cache.service';
 import { CacheInvalidationService } from './services/cache-invalidation.service';
 import { CacheKeyStrategy } from './strategies/cache-key.strategy';
 
+@ApiTags('cache')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/cache')
 export class CacheController {
   constructor(

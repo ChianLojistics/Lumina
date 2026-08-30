@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RateLimitPolicyService, CreatePolicyDto, UpdatePolicyDto } from '../services/rate-limit-policy.service';
 import { RateLimitService } from '../services/rate-limit.service';
 import { RateLimitMonitoringService } from '../services/rate-limit-monitoring.service';
@@ -6,6 +7,8 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { Role } from '../../auth/enums/role.enum';
 
+@ApiTags('rate-limits')
+@ApiBearerAuth('JWT-auth')
 @Controller('api/v1/policies')
 @UseGuards(RolesGuard)
 @Roles(Role.ADMIN)

@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PQKeyManagementService } from './services/pq-key-management.service';
 import { HybridKeyExchangeService } from './services/hybrid-key-exchange.service';
@@ -21,6 +22,8 @@ import { EncryptDto, DecryptDto } from './dto/encrypt.dto';
 import { KeyExchangeDto, EncapsulateDto, DecapsulateDto } from './dto/key-exchange.dto';
 import { PQCAlgorithm } from './interfaces/hybrid-key-exchange.interface';
 
+@ApiTags('crypto')
+@ApiBearerAuth('JWT-auth')
 @Controller('crypto')
 @UseGuards(JwtAuthGuard)
 export class CryptoController {
