@@ -137,7 +137,7 @@ Lumina/
 ### 1. Clone the Repository
 
 ```bash
-git clone  https://github.com/StellarLumina/Lumina.git
+git clone  https://github.com/ChianLojistics/Lumina.git
 cd Lumina
 ```
 
