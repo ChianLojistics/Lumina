@@ -4,9 +4,9 @@
   "description": "Automated failover controller for Lumina disaster recovery",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "start:dev": "ts-node src/index.ts",
+    "build": "node init && tsc",
+    "start": "node init && node dist/index.js",
+    "start:dev": "node init && ts-node src/index.ts",
     "test": "jest"
   },
   "dependencies": {
